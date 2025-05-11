@@ -3,16 +3,6 @@
 // 匯入我們的實作和類型
 import { BlockData, SolanaApiService } from "../api";
 
-// 定義期望的區塊數據格式
-interface BlockData {
-  blockHeight: number;
-  blockHash: string;
-  blockTime: number | null;
-  parentBlockHash: string;
-  previousBlockhash: string;
-  transactionCount: number;
-}
-
 // 模擬 Connection 類
 jest.mock("@solana/web3.js", () => {
   return {
@@ -70,7 +60,9 @@ jest.mock("@solana/web3.js", () => {
                 ],
                 instructions: [
                   {
-                    programId: { toString: () => "program_id_1" },
+                    programId: {
+                      toString: () => "program_id_1",
+                    },
                     accounts: [{ toString: () => `account_${slot}_1` }],
                     data: "test_data",
                   },
