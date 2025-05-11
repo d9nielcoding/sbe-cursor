@@ -1,4 +1,4 @@
-import { Connection } from "@solana/web3.js";
+import { Connection, ConnectionConfig } from "@solana/web3.js";
 
 // 定義區塊數據格式
 export interface BlockData {
@@ -30,14 +30,113 @@ export interface TransactionDetailData extends TransactionData {
   logs: string[];
 }
 
+// RPC 端點列表
+const RPC_ENDPOINTS = {
+  DEVNET: "https://api.devnet.solana.com",
+  TESTNET: "https://api.testnet.solana.com",
+  MAINNET_BETA: "https://api.mainnet-beta.solana.com",
+  // 備用公共端點
+  BACKUP_DEVNET: "https://solana-devnet-rpc.publicnode.com",
+  BACKUP_MAINNET: "https://solana-mainnet-rpc.publicnode.com",
+};
+
+// 重試配置
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 秒
+
+// 延遲函數
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * SolanaApiService 提供與 Solana 區塊鏈互動的方法
  */
 export class SolanaApiService {
   private connection: Connection;
+  private fallbackConnection: Connection | null = null;
 
-  constructor(endpoint: string = "https://api.mainnet-beta.solana.com") {
-    this.connection = new Connection(endpoint);
+  constructor(
+    endpoint: string = RPC_ENDPOINTS.DEVNET,
+    fallbackEndpoint: string | null = RPC_ENDPOINTS.BACKUP_DEVNET
+  ) {
+    const connectionConfig: ConnectionConfig = {
+      commitment: "confirmed",
+      confirmTransactionInitialTimeout: 60000, // 60 seconds
+      disableRetryOnRateLimit: false,
+    };
+
+    this.connection = new Connection(endpoint, connectionConfig);
+
+    // 初始化備用連接（如果提供）
+    if (fallbackEndpoint) {
+      this.fallbackConnection = new Connection(
+        fallbackEndpoint,
+        connectionConfig
+      );
+    }
+  }
+
+  /**
+   * 使用重試機制執行請求，如有需要，嘗試使用備用連接
+   */
+  private async executeWithRetry<T>(
+    operation: (conn: Connection) => Promise<T>,
+    errorMessage: string,
+    retries = MAX_RETRIES
+  ): Promise<T> {
+    let lastError;
+
+    // 嘗試使用主要連接
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        return await operation(this.connection);
+      } catch (error: any) {
+        lastError = error;
+
+        // 檢查是否是速率限制或交易版本錯誤
+        const isRateLimitError =
+          error.message?.includes("429") ||
+          error.message?.includes("403") ||
+          error.message?.includes("Too many requests");
+
+        const isVersionError =
+          error.message?.includes("Transaction version") ||
+          error.code === -32015;
+
+        // 如果有備用連接並且遇到速率限制，立即嘗試備用連接
+        if (
+          this.fallbackConnection &&
+          (isRateLimitError || attempt === retries - 1)
+        ) {
+          console.warn("切換到備用 RPC 端點...");
+          try {
+            return await operation(this.fallbackConnection);
+          } catch (fallbackError: any) {
+            console.error("備用 RPC 端點也失敗:", fallbackError);
+            lastError = fallbackError;
+          }
+        }
+
+        // 如果是交易版本錯誤，直接拋出不再重試
+        if (isVersionError) {
+          throw error;
+        }
+
+        // 如果不是速率限制錯誤，且已經重試到最後一次，直接拋出
+        if (!isRateLimitError && attempt === retries - 1) {
+          throw error;
+        }
+
+        // 等待後重試
+        const delay = RETRY_DELAY * Math.pow(2, attempt);
+        console.warn(
+          `API 請求失敗，${delay}ms 後重試 (${attempt + 1}/${retries})`,
+          error
+        );
+        await sleep(delay);
+      }
+    }
+
+    throw lastError || new Error(errorMessage);
   }
 
   /**
@@ -46,9 +145,9 @@ export class SolanaApiService {
    * @returns 區塊數據陣列
    */
   async getRecentBlocks(limit: number = 10): Promise<BlockData[]> {
-    try {
+    return this.executeWithRetry(async (conn) => {
       // 獲取當前區塊高度
-      const currentSlot = await this.connection.getSlot();
+      const currentSlot = await conn.getSlot();
 
       // 向後獲取區塊
       const blocks: BlockData[] = [];
@@ -57,24 +156,28 @@ export class SolanaApiService {
         const targetSlot = currentSlot - i;
         if (targetSlot < 0) break;
 
-        const block = await this.connection.getBlock(targetSlot);
-        if (block) {
-          blocks.push({
-            blockHeight: targetSlot,
-            blockHash: block.blockhash,
-            blockTime: block.blockTime,
-            parentBlockHash: block.parentSlot.toString(),
-            previousBlockhash: block.previousBlockhash,
-            transactionCount: (block.transactions || []).length,
+        try {
+          const block = await conn.getBlock(targetSlot, {
+            maxSupportedTransactionVersion: 0,
           });
+          if (block) {
+            blocks.push({
+              blockHeight: targetSlot,
+              blockHash: block.blockhash,
+              blockTime: block.blockTime,
+              parentBlockHash: block.parentSlot.toString(),
+              previousBlockhash: block.previousBlockhash,
+              transactionCount: (block.transactions || []).length,
+            });
+          }
+        } catch (error) {
+          console.warn(`無法獲取區塊 ${targetSlot}，跳過`, error);
+          // 繼續獲取下一個區塊而不是完全失敗
         }
       }
 
       return blocks;
-    } catch (error) {
-      console.error("Error fetching recent blocks:", error);
-      throw new Error("Failed to fetch recent blocks");
-    }
+    }, "Failed to fetch recent blocks");
   }
 
   /**
@@ -83,8 +186,10 @@ export class SolanaApiService {
    * @returns 區塊數據或 null（如果找不到）
    */
   async getBlockBySlot(slot: number): Promise<BlockData | null> {
-    try {
-      const block = await this.connection.getBlock(slot);
+    return this.executeWithRetry(async (conn) => {
+      const block = await conn.getBlock(slot, {
+        maxSupportedTransactionVersion: 0,
+      });
 
       if (!block) {
         return null;
@@ -98,10 +203,7 @@ export class SolanaApiService {
         previousBlockhash: block.previousBlockhash,
         transactionCount: (block.transactions || []).length,
       };
-    } catch (error) {
-      console.error(`Error fetching block at slot ${slot}:`, error);
-      throw new Error(`Failed to fetch block at slot ${slot}`);
-    }
+    }, `Failed to fetch block at slot ${slot}`);
   }
 
   /**
@@ -110,8 +212,8 @@ export class SolanaApiService {
    * @returns 交易數據陣列
    */
   async getTransactionsFromBlock(slot: number): Promise<TransactionData[]> {
-    try {
-      const block = await this.connection.getBlock(slot, {
+    return this.executeWithRetry(async (conn) => {
+      const block = await conn.getBlock(slot, {
         maxSupportedTransactionVersion: 0,
       });
 
@@ -137,13 +239,7 @@ export class SolanaApiService {
             : [],
         };
       });
-    } catch (error) {
-      console.error(
-        `Error fetching transactions for block at slot ${slot}:`,
-        error
-      );
-      throw new Error(`Failed to fetch transactions for block at slot ${slot}`);
-    }
+    }, `Failed to fetch transactions for block at slot ${slot}`);
   }
 
   /**
@@ -154,13 +250,10 @@ export class SolanaApiService {
   async getTransactionBySignature(
     signature: string
   ): Promise<TransactionDetailData | null> {
-    try {
-      const transaction = await this.connection.getParsedTransaction(
-        signature,
-        {
-          maxSupportedTransactionVersion: 0,
-        }
-      );
+    return this.executeWithRetry(async (conn) => {
+      const transaction = await conn.getParsedTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      });
 
       if (!transaction) {
         return null;
@@ -193,9 +286,6 @@ export class SolanaApiService {
         instructions,
         logs: meta?.logMessages || [],
       };
-    } catch (error) {
-      console.error(`Error fetching transaction ${signature}:`, error);
-      throw new Error(`Failed to fetch transaction ${signature}`);
-    }
+    }, `Failed to fetch transaction ${signature}`);
   }
 }
