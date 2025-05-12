@@ -2,12 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { HashDisplay } from "../../../components/ui/hash-display";
-import {
-  SolanaApiService,
-  TransactionDetailData,
-} from "../../../lib/solana/api";
+import { useTransaction } from "../../../lib/hooks/useData";
 import Header from "../../components/Header";
 
 export default function TransactionDetailPage() {
@@ -15,44 +11,15 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const signature = params.signature as string;
 
-  const [transaction, setTransaction] = useState<TransactionDetailData | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // 使用 SWR hook 獲取交易數據
+  const { transaction, isLoading, isError } = useTransaction(signature);
 
-  useEffect(() => {
-    const fetchTransactionDetail = async () => {
-      if (!signature) {
-        setError("Invalid transaction signature");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const apiService = new SolanaApiService();
-        const txData = await apiService.getTransactionBySignature(signature);
-
-        if (!txData) {
-          setError(`Transaction data not found for ${signature}`);
-        } else {
-          setTransaction(txData);
-        }
-      } catch (err) {
-        setError(
-          `Failed to fetch transaction data: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTransactionDetail();
-  }, [signature]);
+  // 錯誤信息
+  const error = isError
+    ? `Failed to fetch transaction data: ${signature}`
+    : !transaction && !isLoading
+    ? `Transaction data not found for ${signature}`
+    : null;
 
   // Format timestamp
   const formatBlockTime = (timestamp: number | null): string => {

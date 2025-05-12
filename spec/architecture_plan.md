@@ -101,11 +101,80 @@
 - [x] Write block detail page tests
 - [x] Write transaction page tests
 
+### API Caching Strategy
+
+To improve performance and user experience, we've designed the following API caching strategy using SWR (Stale-While-Revalidate):
+
+#### API Calls to Cache
+
+| API Call | Description | Stale Time | Cache Duration | Rationale |
+|----------|-------------|------------|----------------|-----------|
+| `getBlockBySlot` | Block details by slot number | Infinity | 24 hours | Historical block data doesn't change after confirmation |
+| `getTransactionsFromBlock` | Transactions in a block | Infinity | 24 hours | Transaction lists are immutable once confirmed |
+| `getTransactionBySignature` | Transaction details | Infinity | 24 hours | Transaction details don't change after confirmation |
+| `getSlotLeader` | Block producer details | Infinity | 24 hours | Slot leader assignment is permanent |
+| `getRecentBlocks` | Recent block list | 30 seconds | 5 minutes | Needs periodic updates but not real-time |
+
+#### Caching Strategy Considerations
+
+1. **Conditional Caching**
+   - Longer cache times for confirmed blocks/transactions (>32 confirmations)
+   - Shorter cache times for recent, potentially unconfirmed data
+
+2. **Cache Size Management**
+   - Implement maximum cache items limit (e.g., 500 blocks/transactions)
+   - Use LRU (Least Recently Used) policy for cache eviction
+
+3. **Error Handling**
+   - Return cached data on error (even if stale)
+   - Implement sensible retry strategies
+
+4. **User Controls**
+   - Provide manual refresh buttons for forcing data updates
+   - Clear indicator when viewing cached vs. fresh data
+
+#### Implementation Plan
+
+1. Install and configure SWR library
+2. Create custom hooks for each API call type with appropriate cache settings
+3. Replace current `useEffect`-based data fetching with SWR hooks
+4. Add cache invalidation triggers where appropriate
+5. Implement cache debugging and monitoring tools
+
+#### Future Caching Improvements
+
+1. **LocalStorage Persistence**:
+   - Implement SWR persistence using `localStorage` to retain cache between sessions
+   - Add cache expiration timestamps for different data types
+
+2. **Cache Size Control**:
+   - Implement custom size limits by data type
+   - Add monitoring tools to track cache usage
+
+3. **Cache Warming**:
+   - Pre-fetch common queries on application startup
+   - Implement smart prediction of next blocks to cache
+
+4. **Cache Invalidation Triggers**:
+   - Automated invalidation when new blocks arrive
+   - User-triggered global refresh
+
 ### Pending Features
-- [ ] Add sorting functionality
-- [ ] Implement pagination for large result sets
-- [ ] Enhance error logging
-- [ ] Performance optimization
+- [x] Implement SWR for API caching according to defined strategy
+- [x] Add sorting functionality
+- [x] Implement basic pagination (via "View All" link in block detail page)
+- [ ] Implement advanced pagination with page numbers for large result sets
+- [x] Enhance error logging (console logging in API service)
+- [ ] Implement structured error logging with severity levels
+- [x] Basic performance optimization via API caching
+- [ ] Additional performance optimizations (code splitting, lazy loading)
 - [ ] Cross-browser compatibility testing
-- [ ] Write comprehensive documentation
-- [ ] Set up deployment pipeline 
+- [ ] Update README with comprehensive documentation
+  - [ ] Project overview
+  - [ ] Feature list
+  - [ ] Architecture explanation
+  - [ ] Installation instructions
+  - [ ] Configuration options
+- [ ] Set up deployment pipeline
+  - [ ] Create Dockerfile and docker-compose.yml
+  - [ ] Configure Cloudflare deployment 

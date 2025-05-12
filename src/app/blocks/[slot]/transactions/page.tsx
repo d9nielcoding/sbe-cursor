@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HashDisplay } from "../../../../components/ui/hash-display";
-import { SolanaApiService, TransactionData } from "../../../../lib/solana/api";
+import { useTransactionsFromBlock } from "../../../../lib/hooks/useData";
 import Header from "../../../components/Header";
 
 export default function BlockTransactionsPage() {
@@ -12,41 +12,18 @@ export default function BlockTransactionsPage() {
   const router = useRouter();
   const slot = Number(params.slot);
 
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // Add state for sorting
+  // 使用 SWR hook 獲取交易數據
+  const { transactions, isLoading, isError } = useTransactionsFromBlock(slot);
+
+  // 排序狀態
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (isNaN(slot)) {
-        setError("Invalid block height");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const apiService = new SolanaApiService();
-        const txData = await apiService.getTransactionsFromBlock(slot);
-        setTransactions(txData);
-      } catch (err) {
-        setError(
-          `Failed to fetch transaction data: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
-        if (process.env.NODE_ENV !== "test") {
-          console.error(err);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, [slot]);
+  // 錯誤信息
+  const error = isError
+    ? "Failed to fetch transaction data"
+    : isNaN(slot)
+    ? "Invalid block height"
+    : null;
 
   // Format timestamp with UTC indicator
   const formatBlockTime = (timestamp: number | null): string => {

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HashDisplay } from "../../../components/ui/hash-display";
 import {
-  BlockData,
-  SolanaApiService,
-  TransactionData,
-} from "../../../lib/solana/api";
+  useBlock,
+  useSlotLeader,
+  useTransactionsFromBlock,
+} from "../../../lib/hooks/useData";
 import Header from "../../components/Header";
 
 export default function BlockDetailPage() {
@@ -16,82 +16,36 @@ export default function BlockDetailPage() {
   const router = useRouter();
   const slot = Number(params.slot);
 
-  const [block, setBlock] = useState<BlockData | null>(null);
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // Add state for sorting and copy feedback
+  // 使用 SWR hooks 替代原有 state 和 useEffect
+  const {
+    block,
+    isLoading: isBlockLoading,
+    isError: blockError,
+  } = useBlock(slot);
+  const {
+    transactions,
+    isLoading: isTxLoading,
+    isError: txError,
+  } = useTransactionsFromBlock(slot);
+  const { slotLeader: parentSlotLeader } = useSlotLeader(
+    block?.blockHeight ? block.blockHeight - 1 : null
+  );
+  const { slotLeader: childSlotLeader } = useSlotLeader(
+    block?.childSlots?.[0] || null
+  );
+
+  // 僅保留必要的狀態
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [copiedParentSlot, setCopiedParentSlot] = useState(false);
   const [copiedChildSlot, setCopiedChildSlot] = useState(false);
-  // Add state for parent and child slot leaders
-  const [parentSlotLeader, setParentSlotLeader] = useState<string | null>(null);
-  const [childSlotLeader, setChildSlotLeader] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchBlockData = async () => {
-      if (isNaN(slot)) {
-        setError("Invalid block height");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const apiService = new SolanaApiService();
-
-        // Fetch block details and transaction list in parallel
-        const [blockData, txData] = await Promise.all([
-          apiService.getBlockBySlot(slot),
-          apiService.getTransactionsFromBlock(slot),
-        ]);
-
-        if (!blockData) {
-          setError(`Block data not found for height ${slot}`);
-        } else {
-          setBlock(blockData);
-          setTransactions(txData);
-
-          // Fetch parent slot leader
-          if (blockData.blockHeight > 0) {
-            try {
-              const parentLeader = await apiService.getSlotLeader(
-                blockData.blockHeight - 1
-              );
-              setParentSlotLeader(parentLeader);
-            } catch (err) {
-              console.warn(`Failed to fetch parent slot leader: ${err}`);
-            }
-          }
-
-          // Fetch child slot leader if child slots exist
-          if (blockData.childSlots && blockData.childSlots.length > 0) {
-            try {
-              const childLeader = await apiService.getSlotLeader(
-                blockData.childSlots[0]
-              );
-              setChildSlotLeader(childLeader);
-            } catch (err) {
-              console.warn(`Failed to fetch child slot leader: ${err}`);
-            }
-          }
-        }
-      } catch (err) {
-        setError(
-          `Failed to fetch block data: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
-        if (process.env.NODE_ENV !== "test") {
-          console.error(err);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBlockData();
-  }, [slot]);
+  // 加載狀態整合
+  const isLoading = isBlockLoading || isTxLoading;
+  // 錯誤狀態整合
+  const error =
+    blockError || txError
+      ? "Failed to fetch data: Please try again later."
+      : null;
 
   // 複製文本到剪貼板
   const copyToClipboard = (text: string, type: "parent" | "child") => {

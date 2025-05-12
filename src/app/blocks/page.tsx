@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -18,34 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "../../components/ui/table";
-import { BlockData, SolanaApiService } from "../../lib/solana/api";
+import { useRecentBlocks } from "../../lib/hooks/useData";
 import Header from "../components/Header";
 
 export default function BlockListPage() {
-  const [blocks, setBlocks] = useState<BlockData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-
-  useEffect(() => {
-    const fetchBlocks = async () => {
-      try {
-        setIsLoading(true);
-        const apiService = new SolanaApiService();
-        const blockData = await apiService.getRecentBlocks(15);
-        setBlocks(blockData);
-      } catch (error) {
-        setError("Failed to fetch block data. Please try again later.");
-        if (process.env.NODE_ENV !== "test") {
-          console.error(error);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBlocks();
-  }, []);
+  const { blocks, isLoading, isError, mutate } = useRecentBlocks(15);
 
   const formatBlockTime = (timestamp: number | null): string => {
     if (!timestamp) return "N/A";
@@ -70,15 +48,6 @@ export default function BlockListPage() {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
   };
 
-  const getSortedBlocks = () => {
-    return [...blocks].sort((a, b) => {
-      const timeA = a.blockTime || 0;
-      const timeB = b.blockTime || 0;
-
-      return sortDirection === "asc" ? timeA - timeB : timeB - timeA;
-    });
-  };
-
   if (isLoading) {
     return (
       <>
@@ -98,7 +67,7 @@ export default function BlockListPage() {
     );
   }
 
-  if (error) {
+  if (isError) {
     return (
       <>
         <Header currentPage="Blocks" />
@@ -111,16 +80,26 @@ export default function BlockListPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="mb-4">{error}</p>
-              <Button onClick={() => window.location.reload()}>
-                Try Again
-              </Button>
+              <p className="mb-4">
+                Failed to fetch block data. Please try again later.
+              </p>
+              <Button onClick={() => mutate()}>Try Again</Button>
             </CardContent>
           </Card>
         </div>
       </>
     );
   }
+
+  // 使用 blocks 數組進行排序
+  const getSortedBlocks = () => {
+    return [...blocks].sort((a, b) => {
+      const timeA = a.blockTime || 0;
+      const timeB = b.blockTime || 0;
+
+      return sortDirection === "asc" ? timeA - timeB : timeB - timeA;
+    });
+  };
 
   const sortedBlocks = getSortedBlocks();
 
