@@ -12,7 +12,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* 固定使用亮色主題，不響應系統設置 */
+/* Always use light theme, regardless of system preference */
 /*
 @media (prefers-color-scheme: dark) {
   :root {
@@ -29,9 +29,9 @@ body {
   min-height: 100vh;
 }
 
-/* 添加統一的頁面容器樣式 */
+/* Add consistent page container styles */
 .page-container {
   background-color: white;
-  min-height: calc(100vh - 64px); /* 減去 header 高度 */
+  min-height: calc(100vh - 64px); /* Subtract header height */
   padding-bottom: 2rem;
 }

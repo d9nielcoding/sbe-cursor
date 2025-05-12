@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // 直接重定向到區塊列表頁面
+    // Redirect to blocks list page
     router.push("/blocks");
   }, [router]);
 

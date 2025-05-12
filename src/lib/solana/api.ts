@@ -1,6 +1,6 @@
 import { Connection, ConnectionConfig } from "@solana/web3.js";
 
-// 定義區塊數據格式
+// Block data interface
 export interface BlockData {
   blockHeight: number;
   blockHash: string;
@@ -10,7 +10,7 @@ export interface BlockData {
   transactionCount: number;
 }
 
-// 定義交易數據格式
+// Transaction data interface
 export interface TransactionData {
   transactionHash: string;
   blockTime: number | null;
@@ -20,7 +20,7 @@ export interface TransactionData {
   accounts: string[];
 }
 
-// 定義交易詳情數據格式
+// Transaction detail data interface
 export interface TransactionDetailData extends TransactionData {
   instructions: {
     programId: string;
@@ -30,25 +30,25 @@ export interface TransactionDetailData extends TransactionData {
   logs: string[];
 }
 
-// RPC 端點列表
+// RPC endpoints
 const RPC_ENDPOINTS = {
   DEVNET: "https://api.devnet.solana.com",
   TESTNET: "https://api.testnet.solana.com",
   MAINNET_BETA: "https://api.mainnet-beta.solana.com",
-  // 備用公共端點
+  // Backup public endpoints
   BACKUP_DEVNET: "https://solana-devnet-rpc.publicnode.com",
   BACKUP_MAINNET: "https://solana-mainnet-rpc.publicnode.com",
 };
 
-// 重試配置
+// Retry configuration
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 秒
+const RETRY_DELAY = 1000; // 1 second
 
-// 延遲函數
+// Sleep function for delays
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * SolanaApiService 提供與 Solana 區塊鏈互動的方法
+ * SolanaApiService provides methods for interacting with the Solana blockchain
  */
 export class SolanaApiService {
   private connection: Connection;
@@ -66,7 +66,7 @@ export class SolanaApiService {
 
     this.connection = new Connection(endpoint, connectionConfig);
 
-    // 初始化備用連接（如果提供）
+    // Initialize backup connection if provided
     if (fallbackEndpoint) {
       this.fallbackConnection = new Connection(
         fallbackEndpoint,
@@ -76,7 +76,7 @@ export class SolanaApiService {
   }
 
   /**
-   * 使用重試機制執行請求，如有需要，嘗試使用備用連接
+   * Execute operation with retry mechanism, using backup connection if needed
    */
   private async executeWithRetry<T>(
     operation: (conn: Connection) => Promise<T>,
@@ -85,14 +85,14 @@ export class SolanaApiService {
   ): Promise<T> {
     let lastError;
 
-    // 嘗試使用主要連接
+    // Try with primary connection
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         return await operation(this.connection);
       } catch (error: any) {
         lastError = error;
 
-        // 檢查是否是速率限制或交易版本錯誤
+        // Check if rate limit or transaction version error
         const isRateLimitError =
           error.message?.includes("429") ||
           error.message?.includes("403") ||
@@ -102,34 +102,36 @@ export class SolanaApiService {
           error.message?.includes("Transaction version") ||
           error.code === -32015;
 
-        // 如果有備用連接並且遇到速率限制，立即嘗試備用連接
+        // If backup connection available and rate limit hit, try backup
         if (
           this.fallbackConnection &&
           (isRateLimitError || attempt === retries - 1)
         ) {
-          console.warn("切換到備用 RPC 端點...");
+          console.warn("Switching to backup RPC endpoint...");
           try {
             return await operation(this.fallbackConnection);
           } catch (fallbackError: any) {
-            console.error("備用 RPC 端點也失敗:", fallbackError);
+            console.error("Backup RPC endpoint also failed:", fallbackError);
             lastError = fallbackError;
           }
         }
 
-        // 如果是交易版本錯誤，直接拋出不再重試
+        // If transaction version error, fail immediately
         if (isVersionError) {
           throw error;
         }
 
-        // 如果不是速率限制錯誤，且已經重試到最後一次，直接拋出
+        // If not rate limit and last attempt, fail
         if (!isRateLimitError && attempt === retries - 1) {
           throw error;
         }
 
-        // 等待後重試
+        // Wait and retry
         const delay = RETRY_DELAY * Math.pow(2, attempt);
         console.warn(
-          `API 請求失敗，${delay}ms 後重試 (${attempt + 1}/${retries})`,
+          `API request failed, retrying in ${delay}ms (${
+            attempt + 1
+          }/${retries})`,
           error
         );
         await sleep(delay);
@@ -140,16 +142,16 @@ export class SolanaApiService {
   }
 
   /**
-   * 獲取最近的區塊
-   * @param limit 要獲取的區塊數量
-   * @returns 區塊數據陣列
+   * Get recent blocks
+   * @param limit Number of blocks to fetch
+   * @returns Array of block data
    */
   async getRecentBlocks(limit: number = 10): Promise<BlockData[]> {
     return this.executeWithRetry(async (conn) => {
-      // 獲取當前區塊高度
+      // Get current block height
       const currentSlot = await conn.getSlot();
 
-      // 向後獲取區塊
+      // Fetch blocks in descending order
       const blocks: BlockData[] = [];
 
       for (let i = 0; i < limit; i++) {
@@ -171,8 +173,8 @@ export class SolanaApiService {
             });
           }
         } catch (error) {
-          console.warn(`無法獲取區塊 ${targetSlot}，跳過`, error);
-          // 繼續獲取下一個區塊而不是完全失敗
+          console.warn(`Unable to fetch block ${targetSlot}, skipping`, error);
+          // Continue to next block instead of failing completely
         }
       }
 
@@ -181,9 +183,9 @@ export class SolanaApiService {
   }
 
   /**
-   * 根據區塊高度獲取特定區塊
-   * @param slot 區塊高度
-   * @returns 區塊數據或 null（如果找不到）
+   * Get block data by slot (block height)
+   * @param slot Block height
+   * @returns Block data or null if not found
    */
   async getBlockBySlot(slot: number): Promise<BlockData | null> {
     return this.executeWithRetry(async (conn) => {
@@ -207,90 +209,9 @@ export class SolanaApiService {
   }
 
   /**
-   * 根據區塊哈希獲取特定區塊
-   * @param blockHash 區塊哈希
-   * @returns 區塊數據或 null（如果找不到）
-   */
-  async getBlockByHash(blockHash: string): Promise<BlockData | null> {
-    return this.executeWithRetry(async (conn) => {
-      try {
-        // 使用輔助方法找到對應的槽位
-        const slot = await this.findSlotByBlockhash(blockHash, conn);
-
-        // 如果找不到對應的槽位，返回 null
-        if (slot === null) {
-          return null;
-        }
-
-        // 使用槽位獲取完整的區塊信息
-        return await this.getBlockBySlot(slot);
-      } catch (error) {
-        // 如果是找不到區塊的錯誤，返回 null
-        if (
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("Block not found"))
-        ) {
-          return null;
-        }
-        // 其他錯誤重新拋出，由 executeWithRetry 處理
-        throw error;
-      }
-    }, `Failed to fetch block with hash ${blockHash}`);
-  }
-
-  /**
-   * 輔助方法：根據區塊哈希查找對應的槽位
-   * 注意：這是一個簡化實現，實際應用中可能需要更複雜的查找機制，
-   * 如存儲一個哈希到槽位的映射或進行更多的 RPC 調用
-   * @param blockHash 區塊哈希
-   * @param conn Connection 實例
-   * @returns 槽位或 null（如果找不到）
-   * @private
-   */
-  private async findSlotByBlockhash(
-    blockHash: string,
-    conn: Connection
-  ): Promise<number | null> {
-    try {
-      // 獲取當前最高的已完成區塊
-      const { lastValidBlockHeight } = await conn.getLatestBlockhash();
-
-      // 一個實際實現可能會查詢一個區塊範圍來尋找匹配的區塊哈希
-      // 這裡我們從最近的 100 個區塊中搜索，實際應用中可能需要更精確的搜索範圍
-      const startHeight = Math.max(0, lastValidBlockHeight - 100);
-
-      // 獲取區塊範圍
-      const slots = await conn.getBlocks(startHeight, lastValidBlockHeight);
-
-      // 依次檢查每個區塊
-      for (const slot of slots) {
-        try {
-          const block = await conn.getBlock(slot, {
-            maxSupportedTransactionVersion: 0,
-          });
-
-          if (block && block.blockhash === blockHash) {
-            return slot;
-          }
-        } catch (e) {
-          // 忽略單個區塊的錯誤，繼續檢查其他區塊
-          console.warn(`檢查區塊 ${slot} 時出錯:`, e);
-        }
-      }
-
-      // 如果找不到匹配的區塊，返回 null
-      return null;
-    } catch (error) {
-      console.error("查找區塊哈希對應的槽位時出錯:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * 獲取特定區塊中的所有交易
-   * @param slot 區塊高度
-   * @returns 交易數據陣列
+   * Get all transactions from a specific block
+   * @param slot Block height
+   * @returns Array of transaction data
    */
   async getTransactionsFromBlock(slot: number): Promise<TransactionData[]> {
     return this.executeWithRetry(async (conn) => {
@@ -324,9 +245,9 @@ export class SolanaApiService {
   }
 
   /**
-   * 根據交易簽名獲取交易詳情
-   * @param signature 交易簽名（哈希）
-   * @returns 交易詳情或 null（如果找不到）
+   * Get transaction details by signature
+   * @param signature Transaction signature (hash)
+   * @returns Transaction details or null if not found
    */
   async getTransactionBySignature(
     signature: string
@@ -342,7 +263,7 @@ export class SolanaApiService {
 
       const { blockTime, slot, meta } = transaction;
 
-      // 遍歷並轉換指令資訊
+      // Process and convert instruction information
       const instructions = transaction.transaction.message.instructions.map(
         (ix: any) => {
           return {

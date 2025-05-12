@@ -1,16 +1,16 @@
-// 第一步：先定義我們期望的介面，但還沒有實作
+// First step: Define the expected interfaces before implementation
 
-// 匯入我們的實作和類型
+// Import our implementations and types
 import { BlockData, SolanaApiService } from "../api";
 
-// 創建模擬的區塊哈希映射到槽位的映射
+// Create a mock mapping of block hashes to slots
 const blockHashToSlot = {
   blockhash_95: 95,
   blockhash_96: 96,
   blockhash_100: 100,
 };
 
-// 模擬 Connection 類
+// Mock Connection class
 jest.mock("@solana/web3.js", () => {
   return {
     Connection: jest.fn().mockImplementation(() => ({
@@ -43,19 +43,19 @@ jest.mock("@solana/web3.js", () => {
           ],
         });
       }),
-      // 模擬獲取最近的已完成區塊，可用於模擬通過哈希查詢區塊
+      // Mock getting recent finalized block, usable for block hash queries
       getRecentBlockhash: jest.fn().mockImplementation(() => {
         return Promise.resolve({
           blockhash: "blockhash_100",
           lastValidBlockHeight: 100,
         });
       }),
-      // 模擬根據槽位查詢區塊時間的方法
+      // Mock querying block time by slot
       getBlockTime: jest.fn().mockImplementation((slot: number) => {
         if (slot < 0 || slot > 100) return Promise.resolve(null);
         return Promise.resolve(Date.now() / 1000);
       }),
-      // 模擬查詢區塊是否已完成的方法
+      // Mock getting blocks within a range
       getBlocks: jest.fn().mockImplementation((startSlot, endSlot) => {
         const blocks = [];
         for (let i = startSlot; i <= endSlot && i <= 100; i++) {
@@ -105,13 +105,13 @@ jest.mock("@solana/web3.js", () => {
 describe("SolanaApiService", () => {
   describe("getRecentBlocks", () => {
     it("should return recent blocks", async () => {
-      // 1. 創建 SolanaApiService 實例
+      // 1. Create SolanaApiService instance
       const apiService = new SolanaApiService("mock_endpoint");
 
-      // 2. 調用方法並獲取結果
+      // 2. Call method and get results
       const blocks = await apiService.getRecentBlocks(3);
 
-      // 3. 驗證結果
+      // 3. Validate results
       expect(blocks).toHaveLength(3);
       expect(blocks[0].blockHeight).toBe(100);
       expect(blocks[1].blockHeight).toBe(99);
@@ -127,17 +127,17 @@ describe("SolanaApiService", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      // 1. 創建帶有失敗方法的模擬連接
+      // 1. Create mock connection with failing method
       const mockConnection = {
         getSlot: jest.fn().mockRejectedValue(new Error("Network error")),
         getBlock: jest.fn(),
       };
 
-      // 2. 創建 API 服務並替換連接
+      // 2. Create API service and replace connection
       const apiService = new SolanaApiService("mock_endpoint");
       (apiService as any).connection = mockConnection;
 
-      // 3. 驗證錯誤處理
+      // 3. Validate error handling
       await expect(apiService.getRecentBlocks()).rejects.toThrow(
         "Failed to fetch recent blocks"
       );
@@ -175,50 +175,6 @@ describe("SolanaApiService", () => {
 
       await expect(apiService.getBlockBySlot(95)).rejects.toThrow(
         "Failed to fetch block at slot 95"
-      );
-    });
-  });
-
-  describe("getBlockByHash", () => {
-    it("should return block data for valid block hash", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
-
-      // 模擬一個根據哈希能找到槽位的情況
-      // 通常這需要在 API 服務中實現一個查找機制
-      (apiService as any).findSlotByBlockhash = jest.fn().mockResolvedValue(95);
-
-      const block = await apiService.getBlockByHash("blockhash_95");
-
-      expect(block).not.toBeNull();
-      if (block) {
-        expect(block.blockHeight).toBe(95);
-        expect(block.blockHash).toBe("blockhash_95");
-        expect(block.transactionCount).toBe(1);
-      }
-    });
-
-    it("should return null for invalid block hash", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
-
-      // 模擬找不到槽位的情況
-      (apiService as any).findSlotByBlockhash = jest
-        .fn()
-        .mockResolvedValue(null);
-
-      const block = await apiService.getBlockByHash("invalid_blockhash");
-      expect(block).toBeNull();
-    });
-
-    it("should handle errors gracefully", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
-
-      // 模擬錯誤
-      (apiService as any).findSlotByBlockhash = jest
-        .fn()
-        .mockRejectedValue(new Error("Network error"));
-
-      await expect(apiService.getBlockByHash("blockhash_95")).rejects.toThrow(
-        "Failed to fetch block with hash blockhash_95"
       );
     });
   });

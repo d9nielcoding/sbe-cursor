@@ -1,133 +1,111 @@
-# Solana 區塊鏈瀏覽器架構設計與進度追蹤
+# Solana Blockchain Explorer Architecture Design and Progress Tracking
 
-## 整體架構
+## Overall Architecture
 
-### 前端技術棧
-- Next.js (React 框架)
+### Frontend Technology Stack
+- Next.js (React framework)
 - TypeScript
-- TailwindCSS (UI 樣式)
-- SWR/React Query (資料獲取與緩存)
-- Jest + React Testing Library (測試)
+- TailwindCSS (UI styling)
+- Jest + React Testing Library (testing)
 
-### 應用程式結構
+### Application Structure
 ```
 /app
-  /api               # API 路由處理
-  /components        # 可重用組件
-    /blocks          # 區塊相關組件
-    /transactions    # 交易相關組件
-    /search          # 搜索相關組件
-    /ui              # 通用 UI 組件
-  /hooks             # 自定義 hooks
-  /lib               # 工具函數和公共邏輯
-    /solana          # Solana API 封裝
-    /utils           # 實用工具函數
-  /pages             # 頁面組件 (或使用 App Router)
-  /services          # 外部服務整合
-  /types             # TypeScript 類型定義
-/public              # 靜態資源
+  /components        # Reusable components
+    /Header          # Common header with search functionality
+  /blocks            # Block-related pages
+    /[slot]          # Block detail page with transaction list
+  /transactions      # Transaction-related pages
+    /[signature]     # Transaction detail page
+  /lib               # Utility functions and shared logic
+    /solana          # Solana API wrapper
+      /api.ts        # Core API service
+      /__tests__     # API tests
+  /types             # TypeScript type definitions
+/public              # Static assets
 ```
 
-## 核心功能模組
+## Core Function Modules
 
-### 1. 區塊列表模組
-- 顯示最新區塊的分頁列表
-- 每個區塊顯示：區塊高度、哈希值、時間戳、交易數量
-- 分頁和排序功能
-- 點擊區塊導航至區塊詳情
+### 1. Block List Module
+- Display a list of recent blocks
+- Each block shows: block height, hash, timestamp, transaction count
+- Navigation to block details
 
-### 2. 交易列表模組
-- 顯示特定區塊內的所有交易
-- 每個交易顯示：交易哈希、狀態、時間戳、交易費用
-- 支持按時間戳排序
-- 點擊交易導航至交易詳情
+### 2. Block Detail Module
+- Display detailed block information
+- Show all transactions within the block
+- Navigation between blocks (previous/next)
+- Link to transaction details
 
-### 3. 交易詳情模組
-- 完整顯示交易信息：哈希、狀態、區塊、時間戳等
-- 顯示所有指令詳情
-- 顯示涉及的賬戶信息
-- 顯示交易日誌
+### 3. Transaction Detail Module
+- Display complete transaction information: hash, status, block, timestamp, etc.
+- Show all instruction details
+- Display account information
+- Show transaction logs
 
-### 4. 搜索模組
-- 支持通過區塊哈希或交易哈希搜索
-- 智能識別搜索類型並導航至相應頁面
-- 搜索歷史記錄功能
+### 4. Search Module
+- Support search by block height (slot) or transaction hash
+- Smart identification of search input type
+- Navigation to appropriate page
 
-### 5. 資料獲取與管理
-- 使用 Solana Web3.js 與區塊鏈交互
-- 實現資料緩存減少 API 請求
-- 錯誤處理與重試機制
+### 5. Data Retrieval and Management
+- Interact with Solana blockchain using Web3.js
+- Error handling and retry mechanism with fallback endpoints
+- Display loading states and error messages
 
-## API 整合
+## API Integration
 
-### Solana RPC API 服務
-- 使用公共 Solana RPC 端點或設置私有節點
-- 封裝 API 調用為可重用 hooks
-- 實現優化的數據獲取策略
+### Solana RPC API Service
+- Use public Solana RPC endpoints with fallback options
+- Core API methods:
+  - `getRecentBlocks`: Fetch recent blocks
+  - `getBlockBySlot`: Get block by slot number
+  - `getTransactionsFromBlock`: Get transactions from a specific block
+  - `getTransactionBySignature`: Get detailed transaction information
 
-### 速率限制器
-- 實作請求佇列和節流機制
-- 錯誤重試邏輯
-- 可視化 API 限制狀態
+### Rate Limit Handler
+- Implement request queue and throttling mechanism
+- Error retry logic
+- Fallback to alternate endpoints when rate limited
 
-## 性能優化
-- 使用 Next.js SSR/SSG 優化首次加載
-- 實現無限滾動或分頁機制
-- 數據緩存減少重複請求
-- 按需加載組件和資料
+## Current Progress
 
-## 部署策略
-- Cloudflare Pages 部署
-- 環境變數配置
-- Docker Compose 設置用於本地開發
+### Project Initialization
+- [x] Create Next.js project and configure TypeScript
+- [x] Set up TailwindCSS
+- [x] Establish basic directory structure
+- [x] Configure ESLint and Prettier
+- [x] Set up Jest testing environment
 
-## 測試策略
-- 單元測試：核心工具函數和 hooks
-- 組件測試：UI 組件行為測試
-- 整合測試：API 整合測試
-- E2E 測試：關鍵用戶流程
+### Core Functionality Development
+- [x] Establish connection to Solana network
+- [x] Implement block list functionality
+- [x] Implement block detail functionality
+- [x] Implement transaction list functionality (integrated into block detail)
+- [x] Implement transaction detail functionality
+- [x] Implement search functionality (block height and transaction hash)
+- [x] Remove unnecessary `getBlockByHash` method based on updated requirements
 
-## 進度追蹤
+### UI/UX Development
+- [x] Design and implement main page layout
+- [x] Create block list page
+- [x] Create block detail page with integrated transaction list
+- [x] Create transaction detail page
+- [x] Implement responsive design
+- [x] Optimize loading states and error handling display
 
-### 項目初始化
-- [x] 創建 Next.js 項目並配置 TypeScript
-- [x] 設置 TailwindCSS
-- [x] 建立基本目錄結構
-- [x] 配置 ESLint 和 Prettier
-- [x] 設置 Jest 測試環境
+### Testing
+- [x] Write API service layer unit tests
+- [x] Write block list page tests
+- [x] Write block detail page tests
+- [x] Write transaction page tests
 
-### 核心功能開發
-- [x] 建立與 Solana 網絡的連接
-- [x] 實現區塊列表功能
-- [x] 實現區塊詳情功能
-- [x] 實現交易列表功能
-- [x] 實現交易詳情功能
-- [ ] 實現按時間戳排序功能
-- [ ] 實現搜索功能
-
-### UI/UX 開發
-- [x] 設計和實現主頁面布局
-- [x] 創建區塊列表頁面
-- [x] 創建區塊詳情頁面
-- [x] 創建交易列表頁面
-- [x] 創建交易詳情頁面
-- [ ] 實現響應式設計
-- [ ] 優化加載狀態和錯誤處理顯示
-
-### 進階功能
-- [ ] 實現速率限制器
-- [ ] 創建 Docker Compose 配置
-
-### 測試與優化
-- [x] 編寫 API 服務層單元測試
-- [x] 編寫區塊列表頁面測試
-- [x] 編寫區塊詳情頁面測試
-- [x] 編寫交易列表頁面測試
-- [x] 編寫交易詳情頁面測試
-- [ ] 性能優化
-- [ ] 跨瀏覽器兼容性測試
-
-### 文檔與部署
-- [ ] 編寫 README 文檔
-- [ ] 設置 Cloudflare 部署
-- [ ] 最終代碼審查和優化 
+### Pending Features
+- [ ] Add sorting functionality
+- [ ] Implement pagination for large result sets
+- [ ] Enhance error logging
+- [ ] Performance optimization
+- [ ] Cross-browser compatibility testing
+- [ ] Write comprehensive documentation
+- [ ] Set up deployment pipeline 
