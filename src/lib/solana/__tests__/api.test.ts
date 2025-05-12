@@ -63,6 +63,16 @@ jest.mock("@solana/web3.js", () => {
         }
         return Promise.resolve(blocks);
       }),
+      // Mock getting slot leaders
+      getSlotLeaders: jest.fn().mockImplementation((startSlot, limit) => {
+        const leaders = [];
+        for (let i = 0; i < limit; i++) {
+          const slot = startSlot + i;
+          if (slot < 0 || slot > 100) continue;
+          leaders.push({ toString: () => `leader_${slot}` });
+        }
+        return Promise.resolve(leaders);
+      }),
       getParsedTransaction: jest
         .fn()
         .mockImplementation((signature: string) => {
@@ -156,6 +166,8 @@ describe("SolanaApiService", () => {
         expect(block.blockHeight).toBe(95);
         expect(block.blockHash).toBe("blockhash_95");
         expect(block.transactionCount).toBe(1);
+        expect(block.leader).toBe("leader_95");
+        expect(block.childSlots).toEqual([96]);
       }
     });
 

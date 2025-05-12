@@ -66,13 +66,13 @@ describe("TransactionDetailPage", () => {
     });
 
     // Check basic transaction info
-    expect(screen.getByText("success")).toBeTruthy();
+    expect(screen.getByText("Success")).toBeTruthy();
     expect(screen.getByText("5000 SOL")).toBeTruthy();
 
     // Check instruction information
     expect(screen.getAllByText("Program ID:")[0]).toBeTruthy();
-    expect(screen.getByText("program1")).toBeTruthy();
-    expect(screen.getByText("program2")).toBeTruthy();
+    expect(screen.getAllByText("program1")[0]).toBeTruthy();
+    expect(screen.getAllByText("program2")[0]).toBeTruthy();
 
     // Check accounts information
     expect(screen.getByText("Accounts Involved")).toBeTruthy();

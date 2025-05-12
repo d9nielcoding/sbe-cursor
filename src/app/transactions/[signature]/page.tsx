@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { HashDisplay } from "../../../components/ui/hash-display";
 import {
   SolanaApiService,
   TransactionDetailData,
@@ -139,8 +140,11 @@ export default function TransactionDetailPage() {
                 <div className="text-sm font-medium text-gray-500">
                   Transaction Hash
                 </div>
-                <div className="mt-1 text-sm font-mono break-all">
-                  {transaction.transactionHash}
+                <div className="mt-1">
+                  <HashDisplay
+                    hash={transaction.transactionHash}
+                    truncateLength={24}
+                  />
                 </div>
               </div>
               <div>
@@ -156,7 +160,8 @@ export default function TransactionDetailPage() {
                         : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
-                    {transaction.status}
+                    {transaction.status.charAt(0).toUpperCase() +
+                      transaction.status.slice(1)}
                   </span>
                 </div>
               </div>
@@ -196,11 +201,8 @@ export default function TransactionDetailPage() {
               {transaction.accounts && transaction.accounts.length > 0 ? (
                 <div className="space-y-2">
                   {transaction.accounts.map((account, index) => (
-                    <div
-                      key={index}
-                      className="p-2 bg-gray-50 rounded font-mono text-sm break-all"
-                    >
-                      {account}
+                    <div key={index} className="p-2 bg-gray-50 rounded">
+                      <HashDisplay hash={account} truncateLength={20} />
                     </div>
                   ))}
                 </div>
@@ -223,8 +225,11 @@ export default function TransactionDetailPage() {
                         <span className="text-xs font-medium text-gray-500">
                           Program ID:
                         </span>
-                        <div className="font-mono text-sm break-all">
-                          {instruction.programId}
+                        <div>
+                          <HashDisplay
+                            hash={instruction.programId}
+                            truncateLength={20}
+                          />
                         </div>
                       </div>
                       <div className="mb-2">
@@ -234,11 +239,12 @@ export default function TransactionDetailPage() {
                         <div className="pl-2 text-sm">
                           {instruction.accounts.length > 0 ? (
                             instruction.accounts.map((account, idx) => (
-                              <div
-                                key={idx}
-                                className="font-mono text-xs break-all my-1"
-                              >
-                                {idx + 1}. {account}
+                              <div key={idx} className="my-1">
+                                {idx + 1}.{" "}
+                                <HashDisplay
+                                  hash={account}
+                                  truncateLength={18}
+                                />
                               </div>
                             ))
                           ) : (

@@ -27,21 +27,21 @@ const mockTransactions = [
     transactionHash: "tx_signature_1",
     slot: 100,
     blockTime: 1677657600,
-    status: "success",
+    status: "confirmed",
     fee: 5000,
   },
   {
     transactionHash: "tx_signature_2",
     slot: 100,
     blockTime: 1677657590,
-    status: "success",
+    status: "confirmed",
     fee: 5000,
   },
   {
     transactionHash: "tx_signature_3",
     slot: 100,
     blockTime: 1677657580,
-    status: "success",
+    status: "confirmed",
     fee: 5000,
   },
 ];
@@ -66,16 +66,19 @@ describe("BlockTransactionsPage", () => {
     });
 
     // Check table headers
-    expect(screen.getByText("Transaction Hash")).toBeTruthy();
+    expect(screen.getByText("Transaction Signature")).toBeTruthy();
     expect(screen.getByText("Timestamp")).toBeTruthy();
-    expect(screen.getByText("Block")).toBeTruthy();
     expect(screen.getByText("Status")).toBeTruthy();
-    expect(screen.getByText("Fee")).toBeTruthy();
+    expect(screen.getByText("Fee (SOL)")).toBeTruthy();
 
     // Check transaction data
-    expect(screen.getAllByText("success")).toBeTruthy();
-    expect(screen.getAllByText("5000 SOL")).toBeTruthy();
-    expect(screen.getAllByText("View").length).toBe(3);
+    expect(screen.getAllByText("Confirmed").length).toBe(
+      mockTransactions.length
+    );
+    expect(screen.getAllByText("0.000005000")).toBeTruthy();
+    expect(document.querySelectorAll('a[href^="/transactions/"]').length).toBe(
+      mockTransactions.length
+    );
 
     // Check back button
     const blockDetailLink = screen.getByText("Back to Block Details");

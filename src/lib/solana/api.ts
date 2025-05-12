@@ -8,6 +8,8 @@ export interface BlockData {
   parentBlockHash: string;
   previousBlockhash: string;
   transactionCount: number;
+  leader?: string; // 區塊生產者的公鑰
+  childSlots?: number[]; // 子區塊的 slot 編號列表
 }
 
 // Transaction data interface
@@ -142,6 +144,45 @@ export class SolanaApiService {
   }
 
   /**
+   * Get the slot leader for a specific slot
+   * @param slot Block height
+   * @returns The leader's public key as string or null if not found
+   */
+  async getSlotLeader(slot: number): Promise<string | null> {
+    return this.executeWithRetry(async (conn) => {
+      try {
+        // getSlotLeaders requires start slot and limit
+        // Here we just want one slot leader, so limit = 1
+        const leaders = await conn.getSlotLeaders(slot, 1);
+        return leaders.length > 0 ? leaders[0].toString() : null;
+      } catch (error) {
+        console.warn(`Unable to fetch slot leader for ${slot}`, error);
+        return null;
+      }
+    }, `Failed to fetch slot leader for slot ${slot}`);
+  }
+
+  /**
+   * Get the first child slot for a given slot
+   * @param slot Block height
+   * @returns First child slot number or null if none found
+   */
+  async getChildSlots(slot: number): Promise<number[]> {
+    return this.executeWithRetry(async (conn) => {
+      try {
+        // To find potential child slots, we look at subsequent slots
+        // But we only return the first one as per requirement
+        const blocks = await conn.getBlocks(slot + 1, slot + 2);
+        // Return array with only the first child slot if found
+        return blocks.length > 0 ? [blocks[0]] : [];
+      } catch (error) {
+        console.warn(`Unable to fetch child slot for ${slot}`, error);
+        return [];
+      }
+    }, `Failed to fetch child slot for slot ${slot}`);
+  }
+
+  /**
    * Get recent blocks
    * @param limit Number of blocks to fetch
    * @returns Array of block data
@@ -163,6 +204,14 @@ export class SolanaApiService {
             maxSupportedTransactionVersion: 0,
           });
           if (block) {
+            // Get slot leader (optional)
+            let leader: string | null = null;
+            try {
+              leader = await this.getSlotLeader(targetSlot);
+            } catch (e) {
+              console.warn(`Could not fetch leader for slot ${targetSlot}`);
+            }
+
             blocks.push({
               blockHeight: targetSlot,
               blockHash: block.blockhash,
@@ -170,6 +219,9 @@ export class SolanaApiService {
               parentBlockHash: block.parentSlot.toString(),
               previousBlockhash: block.previousBlockhash,
               transactionCount: (block.transactions || []).length,
+              leader: leader || undefined,
+              // We don't fetch child slots for the recent blocks list
+              // as it would require too many API calls
             });
           }
         } catch (error) {
@@ -197,6 +249,22 @@ export class SolanaApiService {
         return null;
       }
 
+      // Get slot leader
+      let leader: string | null = null;
+      try {
+        leader = await this.getSlotLeader(slot);
+      } catch (e) {
+        console.warn(`Could not fetch leader for slot ${slot}`);
+      }
+
+      // Get child slots
+      let childSlots: number[] = [];
+      try {
+        childSlots = await this.getChildSlots(slot);
+      } catch (e) {
+        console.warn(`Could not fetch child slots for slot ${slot}`);
+      }
+
       return {
         blockHeight: slot,
         blockHash: block.blockhash,
@@ -204,6 +272,8 @@ export class SolanaApiService {
         parentBlockHash: block.parentSlot.toString(),
         previousBlockhash: block.previousBlockhash,
         transactionCount: (block.transactions || []).length,
+        leader: leader || undefined,
+        childSlots: childSlots.length > 0 ? childSlots : undefined,
       };
     }, `Failed to fetch block at slot ${slot}`);
   }
