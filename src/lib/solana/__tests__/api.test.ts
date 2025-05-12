@@ -133,13 +133,14 @@ describe("SolanaApiService", () => {
         getBlock: jest.fn(),
       };
 
-      // 2. Create API service and replace connection
+      // 2. Create API service and replace both connections
       const apiService = new SolanaApiService("mock_endpoint");
       (apiService as any).connection = mockConnection;
+      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
 
       // 3. Validate error handling
       await expect(apiService.getRecentBlocks()).rejects.toThrow(
-        "Failed to fetch recent blocks"
+        "Network error"
       );
     });
   });
@@ -172,9 +173,10 @@ describe("SolanaApiService", () => {
 
       const apiService = new SolanaApiService("mock_endpoint");
       (apiService as any).connection = mockConnection;
+      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
 
       await expect(apiService.getBlockBySlot(95)).rejects.toThrow(
-        "Failed to fetch block at slot 95"
+        "Network error"
       );
     });
   });
@@ -207,9 +209,10 @@ describe("SolanaApiService", () => {
 
       const apiService = new SolanaApiService("mock_endpoint");
       (apiService as any).connection = mockConnection;
+      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
 
       await expect(apiService.getTransactionsFromBlock(95)).rejects.toThrow(
-        "Failed to fetch transactions for block at slot 95"
+        "Network error"
       );
     });
   });
@@ -252,10 +255,11 @@ describe("SolanaApiService", () => {
 
       const apiService = new SolanaApiService("mock_endpoint");
       (apiService as any).connection = mockConnection;
+      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
 
       await expect(
         apiService.getTransactionBySignature("signature_95_1")
-      ).rejects.toThrow("Failed to fetch transaction signature_95_1");
+      ).rejects.toThrow("Network error");
     });
   });
 });

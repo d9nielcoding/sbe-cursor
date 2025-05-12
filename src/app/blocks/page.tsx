@@ -9,6 +9,7 @@ export default function BlockListPage() {
   const [blocks, setBlocks] = useState<BlockData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const fetchBlocks = async () => {
@@ -28,10 +29,22 @@ export default function BlockListPage() {
     fetchBlocks();
   }, []);
 
-  // Format timestamp
   const formatBlockTime = (timestamp: number | null): string => {
     if (!timestamp) return "N/A";
     return new Date(timestamp * 1000).toLocaleString();
+  };
+
+  const handleTimestampSort = () => {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  const getSortedBlocks = () => {
+    return [...blocks].sort((a, b) => {
+      const timeA = a.blockTime || 0;
+      const timeB = b.blockTime || 0;
+
+      return sortDirection === "asc" ? timeA - timeB : timeB - timeA;
+    });
   };
 
   if (isLoading) {
@@ -67,6 +80,8 @@ export default function BlockListPage() {
     );
   }
 
+  const sortedBlocks = getSortedBlocks();
+
   return (
     <>
       <Header currentPage="Blocks" />
@@ -85,8 +100,16 @@ export default function BlockListPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Block Hash
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Timestamp
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                      onClick={handleTimestampSort}
+                    >
+                      <div className="flex items-center">
+                        Timestamp
+                        <span className="ml-1">
+                          {sortDirection === "asc" ? "▲" : "▼"}
+                        </span>
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Transactions
@@ -97,7 +120,7 @@ export default function BlockListPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {blocks.map((block) => (
+                  {sortedBlocks.map((block) => (
                     <tr key={block.blockHash} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-blue-600">

@@ -19,6 +19,8 @@ export default function BlockDetailPage() {
   const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Add state for sorting
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     const fetchBlockData = async () => {
@@ -73,10 +75,27 @@ export default function BlockDetailPage() {
     )}`;
   };
 
+  // Handle timestamp column click for sorting
+  const handleTimestampSort = () => {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  // Get sorted transactions based on sort direction
+  const getSortedTransactions = () => {
+    return [...transactions].sort((a, b) => {
+      const timeA = a.blockTime || 0;
+      const timeB = b.blockTime || 0;
+
+      return sortDirection === "asc"
+        ? timeA - timeB // Ascending: earlier timestamps first
+        : timeB - timeA; // Descending: later timestamps first
+    });
+  };
+
   if (isLoading) {
     return (
       <>
-        <Header currentPage={`Block #${slot}`} />
+        <Header currentPage={`Block #${slot.toLocaleString()}`} />
         <div className="flex justify-center items-center min-h-[60vh]">
           <div
             className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
@@ -130,6 +149,9 @@ export default function BlockDetailPage() {
       </>
     );
   }
+
+  // Get sorted transactions
+  const sortedTransactions = getSortedTransactions();
 
   return (
     <>
@@ -224,20 +246,40 @@ export default function BlockDetailPage() {
           </div>
 
           <div className="bg-white shadow-md rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Transactions in this Block
-            </h3>
-            {transactions.length === 0 ? (
-              <div className="text-gray-500 py-4 text-center">
-                No transactions in this block
+            <div className="overflow-x-auto mt-6">
+              <div className="mb-4 flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Transactions</h3>
+                <div>
+                  <Link
+                    href={`/blocks/${slot}/transactions`}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    View All Transactions
+                  </Link>
+                </div>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+
+              {sortedTransactions.length === 0 ? (
+                <div className="bg-white p-4 text-center rounded-md border border-gray-200">
+                  <p className="text-gray-500">No transactions in this block</p>
+                </div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200 border rounded-lg overflow-hidden">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Transaction Hash
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none"
+                        onClick={handleTimestampSort}
+                      >
+                        <div className="flex items-center">
+                          Timestamp
+                          <span className="ml-1">
+                            {sortDirection === "asc" ? "▲" : "▼"}
+                          </span>
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -251,10 +293,13 @@ export default function BlockDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {transactions.map((tx) => (
+                    {sortedTransactions.map((tx) => (
                       <tr key={tx.transactionHash} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
                           {truncateHash(tx.transactionHash)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatBlockTime(tx.blockTime)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -285,8 +330,8 @@ export default function BlockDetailPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

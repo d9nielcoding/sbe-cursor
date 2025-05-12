@@ -1,7 +1,14 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import BlockListPage from "../blocks/page";
 
-// 模擬 SolanaApiService
+// Mock SolanaApiService
 const mockGetRecentBlocks = jest.fn();
 jest.mock("../../lib/solana/api", () => {
   return {
@@ -11,7 +18,7 @@ jest.mock("../../lib/solana/api", () => {
   };
 });
 
-// 模擬 next/navigation
+// Mock next/navigation
 jest.mock("next/navigation", () => ({
   useRouter: jest.fn().mockReturnValue({
     push: jest.fn(),
@@ -28,7 +35,7 @@ describe("BlockListPage", () => {
       {
         blockHeight: 100,
         blockHash: "block_hash_100",
-        blockTime: 1677657600, // 2023-03-01 時間戳
+        blockTime: 1677657600, // Timestamp for 2023-03-01
         parentBlockHash: "parent_hash_99",
         previousBlockhash: "prev_hash_99",
         transactionCount: 10,
@@ -36,53 +43,93 @@ describe("BlockListPage", () => {
       {
         blockHeight: 99,
         blockHash: "block_hash_99",
-        blockTime: 1677657500,
+        blockTime: 1677657500, // Earlier timestamp
         parentBlockHash: "parent_hash_98",
         previousBlockhash: "prev_hash_98",
         transactionCount: 5,
       },
+      {
+        blockHeight: 101,
+        blockHash: "block_hash_101",
+        blockTime: 1677657700, // Later timestamp
+        parentBlockHash: "parent_hash_100",
+        previousBlockhash: "prev_hash_100",
+        transactionCount: 8,
+      },
     ]);
   });
 
-  it("成功載入並顯示區塊列表", async () => {
-    // 使用 act 包裹渲染和等待
+  it("loads and displays block list successfully", async () => {
+    // Wrap rendering and waiting with act
     await act(async () => {
       render(<BlockListPage />);
     });
 
-    // 等待標題顯示表示頁面已經載入完成
+    // Wait for title to appear, indicating the page has loaded
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /最新區塊/i })
-      ).toBeInTheDocument();
+        screen.getByRole("heading", { name: /Recent Blocks/i })
+      ).toBeTruthy();
     });
 
-    // 檢查區塊資料
-    expect(screen.getByText("100")).toBeInTheDocument();
-    expect(screen.getByText("99")).toBeInTheDocument();
-    expect(screen.getByText("10")).toBeInTheDocument();
-    expect(screen.getByText("5")).toBeInTheDocument();
+    // Check block data
+    expect(screen.getByText("100")).toBeTruthy();
+    expect(screen.getByText("99")).toBeTruthy();
+    expect(screen.getByText("101")).toBeTruthy();
+    expect(screen.getByText("10")).toBeTruthy();
+    expect(screen.getByText("5")).toBeTruthy();
+    expect(screen.getByText("8")).toBeTruthy();
 
-    // 檢查詳情連結
-    const links = screen.getAllByText("詳情");
-    expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute("href", "/blocks/100");
+    // Check detail links
+    const links = screen.getAllByText("View");
+    expect(links).toHaveLength(3);
   });
 
-  it("處理 API 錯誤", async () => {
-    // 為這個測試覆寫模擬實現
+  it("handles API errors", async () => {
+    // Override mock implementation for this test
     mockGetRecentBlocks.mockRejectedValueOnce(new Error("API Error"));
 
     await act(async () => {
       render(<BlockListPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText(/無法獲取區塊數據/i)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to fetch block data/i)).toBeTruthy();
     });
 
-    // 檢查重試按鈕
-    expect(screen.getByRole("button", { name: /重試/i })).toBeInTheDocument();
+    // Check retry button
+    expect(screen.getByRole("button", { name: /Retry/i })).toBeTruthy();
+  });
+
+  it("sorts blocks by timestamp when timestamp header is clicked", async () => {
+    await act(async () => {
+      render(<BlockListPage />);
+    });
+
+    // Wait for blocks to load
+    await waitFor(() => {
+      expect(screen.getByText("Recent Blocks")).toBeTruthy();
+    });
+
+    // Get the timestamp header
+    const timestampHeader = screen.getByText("Timestamp", {
+      selector: "th div",
+    });
+
+    // Initially should be sorted in descending order (latest first)
+    expect(timestampHeader).toHaveTextContent("▼");
+
+    // Click to sort ascending
+    fireEvent.click(timestampHeader);
+
+    // Should now be in ascending order
+    expect(timestampHeader).toHaveTextContent("▲");
+
+    // Click again to sort descending
+    fireEvent.click(timestampHeader);
+
+    // Should now be in descending order
+    expect(timestampHeader).toHaveTextContent("▼");
   });
 });

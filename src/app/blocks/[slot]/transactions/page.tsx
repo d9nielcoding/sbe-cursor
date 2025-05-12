@@ -17,7 +17,7 @@ export default function BlockTransactionsPage() {
   useEffect(() => {
     const fetchTransactions = async () => {
       if (isNaN(slot)) {
-        setError("無效的區塊高度");
+        setError("Invalid block height");
         setIsLoading(false);
         return;
       }
@@ -29,7 +29,9 @@ export default function BlockTransactionsPage() {
         setTransactions(txData);
       } catch (err) {
         setError(
-          `無法獲取交易資料：${err instanceof Error ? err.message : "未知錯誤"}`
+          `Failed to fetch transaction data: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`
         );
         console.error(err);
       } finally {
@@ -40,13 +42,13 @@ export default function BlockTransactionsPage() {
     fetchTransactions();
   }, [slot]);
 
-  // 格式化時間戳
+  // Format timestamp
   const formatBlockTime = (timestamp: number | null): string => {
     if (!timestamp) return "N/A";
     return new Date(timestamp * 1000).toLocaleString();
   };
 
-  // 截短顯示哈希值
+  // Truncate hash display
   const truncateHash = (hash: string, length: number = 8): string => {
     if (!hash) return "";
     return `${hash.substring(0, length)}...${hash.substring(
@@ -71,13 +73,13 @@ export default function BlockTransactionsPage() {
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             onClick={() => window.location.reload()}
           >
-            重試
+            Retry
           </button>
           <button
             className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
             onClick={() => router.back()}
           >
-            返回
+            Back
           </button>
         </div>
       </div>
@@ -88,19 +90,19 @@ export default function BlockTransactionsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold">
-          區塊 #{slot.toLocaleString()} 的交易
+          Transactions in Block #{slot.toLocaleString()}
         </h1>
         <Link
           href={`/blocks/${slot}`}
           className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
-          返回區塊詳情
+          Back to Block Details
         </Link>
       </div>
 
       {transactions.length === 0 ? (
         <div className="bg-white shadow rounded-lg p-6 text-center">
-          <p className="text-gray-600">此區塊沒有交易</p>
+          <p className="text-gray-600">No transactions in this block</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -108,22 +110,22 @@ export default function BlockTransactionsPage() {
             <thead className="bg-gray-100">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  交易哈希
+                  Transaction Hash
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  時間戳
+                  Timestamp
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  區塊
+                  Block
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  狀態
+                  Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  手續費
+                  Fee
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  操作
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -166,7 +168,7 @@ export default function BlockTransactionsPage() {
                       href={`/transactions/${tx.transactionHash}`}
                       className="text-blue-600 hover:text-blue-900"
                     >
-                      詳情
+                      View
                     </Link>
                   </td>
                 </tr>

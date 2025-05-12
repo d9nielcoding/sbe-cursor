@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 
-// 先模擬依賴，避免循環引用問題
+// Mock dependencies to avoid circular reference issues
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -16,11 +16,11 @@ jest.mock("../../lib/solana/api", () => ({
   })),
 }));
 
-// 在模擬之後再導入組件
+// Import component after mocking
 import { SolanaApiService } from "../../lib/solana/api";
 import TransactionDetailPage from "../transactions/[signature]/page";
 
-// 模擬數據
+// Mock data
 const mockTransactionDetail = {
   transactionHash: "test_signature",
   slot: 100,
@@ -47,7 +47,7 @@ const mockTransactionDetail = {
 describe("TransactionDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // 在這裡設置每個測試的模擬實現
+    // Set mock implementation for each test
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionBySignature: jest
         .fn()
@@ -55,38 +55,38 @@ describe("TransactionDetailPage", () => {
     }));
   });
 
-  it("顯示交易詳情", async () => {
+  it("displays transaction details", async () => {
     await act(async () => {
       render(<TransactionDetailPage />);
     });
 
-    // 等待頁面標題顯示，表示頁面已經載入完成
+    // Wait for page title to appear, indicating the page has loaded
     await waitFor(() => {
-      expect(screen.getByText("交易詳情")).toBeDefined();
+      expect(screen.getByText("Transaction Details")).toBeTruthy();
     });
 
-    // 檢查交易基本信息
-    expect(screen.getByText("success")).toBeDefined();
-    expect(screen.getByText("5000 SOL")).toBeDefined();
+    // Check basic transaction info
+    expect(screen.getByText("success")).toBeTruthy();
+    expect(screen.getByText("5000 SOL")).toBeTruthy();
 
-    // 檢查指令信息
-    expect(screen.getAllByText("程式 ID")[0]).toBeDefined();
-    expect(screen.getByText("program1")).toBeDefined();
-    expect(screen.getByText("program2")).toBeDefined();
+    // Check instruction information
+    expect(screen.getAllByText("Program ID:")[0]).toBeTruthy();
+    expect(screen.getByText("program1")).toBeTruthy();
+    expect(screen.getByText("program2")).toBeTruthy();
 
-    // 檢查賬戶信息
-    expect(screen.getByText("涉及的帳戶")).toBeDefined();
-    expect(screen.getAllByText("account1")[0]).toBeDefined();
-    expect(screen.getAllByText("account2")[0]).toBeDefined();
-    expect(screen.getAllByText("account3")[0]).toBeDefined();
+    // Check accounts information
+    expect(screen.getByText("Accounts Involved")).toBeTruthy();
+    expect(screen.getAllByText("account1")[0]).toBeTruthy();
+    expect(screen.getAllByText("account2")[0]).toBeTruthy();
+    expect(screen.getAllByText("account3")[0]).toBeTruthy();
 
-    // 檢查所屬區塊按鈕
-    const blockLink = screen.getByText("查看所屬區塊");
+    // Check block link
+    const blockLink = screen.getByText("View Block");
     expect(blockLink.getAttribute("href")).toBe("/blocks/100");
   });
 
-  it("處理找不到交易的情況", async () => {
-    // 模擬無效交易簽名
+  it("handles case when transaction is not found", async () => {
+    // Mock invalid transaction signature
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionBySignature: jest.fn().mockResolvedValue(null),
     }));
@@ -95,17 +95,19 @@ describe("TransactionDetailPage", () => {
       render(<TransactionDetailPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText(/找不到交易.*的資料/i)).toBeDefined();
+      expect(
+        screen.getByText(/Transaction data not found for test_signature/i)
+      ).toBeTruthy();
     });
 
-    // 檢查返回按鈕
-    expect(screen.getByText("返回")).toBeDefined();
+    // Check back button
+    expect(screen.getByText("Back")).toBeTruthy();
   });
 
-  it("處理 API 錯誤", async () => {
-    // 模擬 API 錯誤
+  it("handles API errors", async () => {
+    // Mock API error
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionBySignature: jest
         .fn()
@@ -116,13 +118,15 @@ describe("TransactionDetailPage", () => {
       render(<TransactionDetailPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText(/無法獲取交易資料/i)).toBeDefined();
+      expect(
+        screen.getByText(/Failed to fetch transaction data/i)
+      ).toBeTruthy();
     });
 
-    // 檢查重試按鈕
-    expect(screen.getByText("重試")).toBeDefined();
-    expect(screen.getByText("返回")).toBeDefined();
+    // Check retry and back buttons
+    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByText("Back")).toBeTruthy();
   });
 });

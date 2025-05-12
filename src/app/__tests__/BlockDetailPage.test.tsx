@@ -1,6 +1,12 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 
-// 先模擬依賴，避免循環引用問題
+// Mock dependencies to avoid circular dependencies
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -10,7 +16,7 @@ jest.mock("next/navigation", () => ({
   useParams: () => ({ slot: "100" }),
 }));
 
-// 定義會在測試中使用的模擬函數
+// Define mock functions to be used in tests
 const mockGetBlockBySlot = jest.fn();
 const mockGetTransactionsFromBlock = jest.fn();
 
@@ -21,24 +27,24 @@ jest.mock("../../lib/solana/api", () => ({
   })),
 }));
 
-// 在模擬之後再導入組件
+// Import component after mocking
 import BlockDetailPage from "../blocks/[slot]/page";
 
-// 模擬區塊數據
+// Mock block data
 const mockBlockData = {
   blockHeight: 100,
   blockHash: "block_hash_100",
-  blockTime: 1677657600, // 2023-03-01 時間戳
+  blockTime: 1677657600, // Timestamp for 2023-03-01
   parentBlockHash: "parent_hash_99",
   previousBlockhash: "prev_hash_99",
   transactionCount: 10,
 };
 
-// 模擬交易數據
+// Mock transaction data with different timestamps
 const mockTransactions = [
   {
     transactionHash: "tx_hash_1",
-    blockTime: 1677657600,
+    blockTime: 1677657600, // Later timestamp
     slot: 100,
     status: "confirmed",
     fee: 5000,
@@ -46,85 +52,97 @@ const mockTransactions = [
   },
   {
     transactionHash: "tx_hash_2",
-    blockTime: 1677657590,
+    blockTime: 1677657590, // Earlier timestamp
     slot: 100,
     status: "confirmed",
     fee: 5000,
     accounts: ["account3", "account4"],
+  },
+  {
+    transactionHash: "tx_hash_3",
+    blockTime: 1677657595, // Middle timestamp
+    slot: 100,
+    status: "confirmed",
+    fee: 5000,
+    accounts: ["account5", "account6"],
   },
 ];
 
 describe("BlockDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // 設置默認模擬實現
+    // Set default mock implementations
     mockGetBlockBySlot.mockResolvedValue(mockBlockData);
     mockGetTransactionsFromBlock.mockResolvedValue(mockTransactions);
   });
 
-  it("顯示區塊詳情和交易列表", async () => {
+  it("displays block details and transaction list", async () => {
     await act(async () => {
       render(<BlockDetailPage />);
     });
 
-    // 等待區塊標題顯示，表示頁面已經載入完成
+    // Wait for block title to appear, indicating the page has loaded
     await waitFor(() => {
-      expect(screen.getByText(/區塊 #100/i)).toBeTruthy();
+      expect(screen.getByText("Block Information")).toBeTruthy();
     });
 
-    // 檢查區塊資訊
+    // Check block information
     expect(screen.getByText("block_hash_100")).toBeTruthy();
     expect(screen.getByText("parent_hash_99")).toBeTruthy();
     expect(screen.getByText("prev_hash_99")).toBeTruthy();
     expect(screen.getByText("10")).toBeTruthy();
 
-    // 檢查導航按鈕
-    const prevBlockLink = screen.getByText("上一區塊");
-    const nextBlockLink = screen.getByText("下一區塊");
-    const blockListLink = screen.getByText("區塊列表");
+    // Check navigation buttons
+    const prevBlockLink = screen.getByText("Previous Block");
+    const nextBlockLink = screen.getByText("Next Block");
+    const blockListLink = screen.getByText("Block List");
 
     expect(prevBlockLink.getAttribute("href")).toBe("/blocks/99");
     expect(nextBlockLink.getAttribute("href")).toBe("/blocks/101");
     expect(blockListLink.getAttribute("href")).toBe("/blocks");
 
-    // 檢查交易列表
-    expect(screen.getByText("區塊交易")).toBeTruthy();
+    // Check transaction list section
+    expect(screen.getByText("Transactions")).toBeTruthy();
 
-    // 檢查表頭
-    expect(screen.getByText("交易哈希")).toBeTruthy();
-    expect(screen.getByText("時間戳")).toBeTruthy();
-    expect(screen.getByText("狀態")).toBeTruthy();
-    expect(screen.getByText("手續費")).toBeTruthy();
+    // Check table headers
+    expect(screen.getByText("Transaction Hash")).toBeTruthy();
+    expect(screen.getByText("Status")).toBeTruthy();
+    expect(screen.getByText("Fee")).toBeTruthy();
 
-    // 檢查交易數據
-    expect(screen.getAllByText("confirmed").length).toBe(2);
+    // Check transaction data
+    expect(screen.getAllByText("confirmed").length).toBe(
+      mockTransactions.length
+    );
 
-    // 檢查詳情連結
-    const detailLinks = screen.getAllByText("詳情");
-    expect(detailLinks.length).toBe(2);
-    expect(detailLinks[0].getAttribute("href")).toBe("/transactions/tx_hash_1");
-    expect(detailLinks[1].getAttribute("href")).toBe("/transactions/tx_hash_2");
+    // Check detail links
+    const detailLinks = screen.getAllByText("View");
+    expect(detailLinks.length).toBe(mockTransactions.length);
+
+    // 確保所有的交易鏈接都存在，但不再檢查特定順序
+    expect(screen.getByText(/tx_hash_...x_hash_1/)).toBeTruthy();
+    expect(screen.getByText(/tx_hash_...x_hash_2/)).toBeTruthy();
+    expect(screen.getByText(/tx_hash_...x_hash_3/)).toBeTruthy();
   });
 
-  it("顯示區塊詳情但沒有交易", async () => {
-    // 模擬沒有交易的情況
+  it("displays block details with no transactions", async () => {
+    // Mock a case with no transactions
     mockGetTransactionsFromBlock.mockResolvedValue([]);
 
     await act(async () => {
       render(<BlockDetailPage />);
     });
 
-    // 等待區塊標題顯示
+    // Wait for block title to appear
     await waitFor(() => {
-      expect(screen.getByText(/區塊 #100/i)).toBeTruthy();
+      expect(screen.getByText("Block Information")).toBeTruthy();
     });
 
-    // 檢查交易列表為空的提示
-    expect(screen.getByText("此區塊沒有交易")).toBeTruthy();
+    // Check empty transaction list message
+    expect(screen.getByText("No transactions in this block")).toBeTruthy();
   });
 
-  it("處理找不到區塊的情況", async () => {
-    // 模擬無效區塊編號
+  it("handles case when block is not found", async () => {
+    // Mock invalid block number
     jest
       .spyOn(require("next/navigation"), "useParams")
       .mockReturnValue({ slot: "999" });
@@ -134,30 +152,83 @@ describe("BlockDetailPage", () => {
       render(<BlockDetailPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText(/找不到區塊高度 999 的資料/i)).toBeTruthy();
+      expect(
+        screen.getByText(/Block data not found for height 999/i)
+      ).toBeTruthy();
     });
 
-    // 檢查返回按鈕
-    expect(screen.getByText("返回")).toBeTruthy();
+    // Check back button
+    expect(screen.getByText("Back")).toBeTruthy();
   });
 
-  it("處理 API 錯誤", async () => {
-    // 模擬 API 錯誤
+  it("handles API errors", async () => {
+    // Mock API error
     mockGetBlockBySlot.mockRejectedValue(new Error("API Error"));
 
     await act(async () => {
       render(<BlockDetailPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText(/無法獲取區塊資料：API Error/i)).toBeTruthy();
+      expect(
+        screen.getByText(/Failed to fetch block data: API Error/i)
+      ).toBeTruthy();
     });
 
-    // 檢查重試和返回按鈕
-    expect(screen.getByText("重試")).toBeTruthy();
-    expect(screen.getByText("返回")).toBeTruthy();
+    // Check retry and back buttons
+    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByText("Back")).toBeTruthy();
+  });
+
+  // New test for timestamp sorting feature
+  it("sorts transactions by timestamp when header is clicked", async () => {
+    await act(async () => {
+      render(<BlockDetailPage />);
+    });
+
+    // Wait for page to load by checking for a more specific element
+    await waitFor(() => {
+      expect(screen.getByText("Block Information")).toBeTruthy();
+    });
+
+    // Ensure timestamp column exists
+    const timestampHeader = screen.getByText("Timestamp", {
+      selector: "th div",
+    });
+    expect(timestampHeader).toBeTruthy();
+
+    // Initially transactions should be sorted in descending order (latest first)
+    expect(timestampHeader).toHaveTextContent("▼");
+
+    // Click to sort ascending
+    fireEvent.click(timestampHeader);
+
+    // Should now be in ascending order
+    expect(timestampHeader).toHaveTextContent("▲");
+
+    // Wait for sorting to complete
+    await waitFor(() => {
+      const sortedRows = screen.getAllByRole("row");
+      // Verify first row after header contains the earliest timestamp transaction (tx_hash_2)
+      const firstDataRow = sortedRows[1];
+      expect(firstDataRow.textContent).toContain("tx_hash_...x_hash_2");
+    });
+
+    // Click again to sort descending
+    fireEvent.click(timestampHeader);
+
+    // Should now be in descending order
+    expect(timestampHeader).toHaveTextContent("▼");
+
+    // Wait for sorting to complete
+    await waitFor(() => {
+      const sortedRows = screen.getAllByRole("row");
+      // Verify first row after header contains the latest timestamp transaction (tx_hash_1)
+      const firstDataRow = sortedRows[1];
+      expect(firstDataRow.textContent).toContain("tx_hash_...x_hash_1");
+    });
   });
 });

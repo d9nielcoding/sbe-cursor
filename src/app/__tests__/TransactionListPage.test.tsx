@@ -1,6 +1,7 @@
+import "@testing-library/jest-dom";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
-// 先模擬依賴，避免循環引用問題
+// Mock dependencies to avoid circular reference issues
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -16,11 +17,11 @@ jest.mock("../../lib/solana/api", () => ({
   })),
 }));
 
-// 在模擬之後再導入組件
+// Import component after mocking
 import { SolanaApiService } from "../../lib/solana/api";
 import BlockTransactionsPage from "../blocks/[slot]/transactions/page";
 
-// 模擬數據
+// Mock data
 const mockTransactions = [
   {
     transactionHash: "tx_signature_1",
@@ -48,41 +49,41 @@ const mockTransactions = [
 describe("BlockTransactionsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // 在這裡設置每個測試的模擬實現
+    // Set up mock implementation for each test
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionsFromBlock: jest.fn().mockResolvedValue(mockTransactions),
     }));
   });
 
-  it("顯示區塊交易列表", async () => {
+  it("displays block transactions list", async () => {
     await act(async () => {
       render(<BlockTransactionsPage />);
     });
 
-    // 等待頁面標題顯示，表示頁面已經載入完成
+    // Wait for page title to appear, indicating the page has loaded
     await waitFor(() => {
-      expect(screen.getByText(/區塊 #100 的交易/i)).toBeDefined();
+      expect(screen.getByText(/Transactions in Block #100/i)).toBeTruthy();
     });
 
-    // 檢查表格標題
-    expect(screen.getByText("交易哈希")).toBeDefined();
-    expect(screen.getByText("時間戳")).toBeDefined();
-    expect(screen.getByText("區塊")).toBeDefined();
-    expect(screen.getByText("狀態")).toBeDefined();
-    expect(screen.getByText("手續費")).toBeDefined();
+    // Check table headers
+    expect(screen.getByText("Transaction Hash")).toBeTruthy();
+    expect(screen.getByText("Timestamp")).toBeTruthy();
+    expect(screen.getByText("Block")).toBeTruthy();
+    expect(screen.getByText("Status")).toBeTruthy();
+    expect(screen.getByText("Fee")).toBeTruthy();
 
-    // 檢查交易資料
-    expect(screen.getAllByText("success")).toBeDefined();
-    expect(screen.getAllByText("5000 SOL")).toBeDefined();
-    expect(screen.getAllByText("詳情").length).toBe(3);
+    // Check transaction data
+    expect(screen.getAllByText("success")).toBeTruthy();
+    expect(screen.getAllByText("5000 SOL")).toBeTruthy();
+    expect(screen.getAllByText("View").length).toBe(3);
 
-    // 檢查返回按鈕
-    const blockDetailLink = screen.getByText("返回區塊詳情");
+    // Check back button
+    const blockDetailLink = screen.getByText("Back to Block Details");
     expect(blockDetailLink.getAttribute("href")).toBe("/blocks/100");
   });
 
-  it("處理空交易列表", async () => {
-    // 模擬空數據
+  it("handles empty transaction list", async () => {
+    // Mock empty data
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionsFromBlock: jest.fn().mockResolvedValue([]),
     }));
@@ -91,17 +92,17 @@ describe("BlockTransactionsPage", () => {
       render(<BlockTransactionsPage />);
     });
 
-    // 等待頁面載入完成
+    // Wait for page to load
     await waitFor(() => {
-      expect(screen.getByText(/區塊 #100 的交易/i)).toBeDefined();
+      expect(screen.getByText(/Transactions in Block #100/i)).toBeTruthy();
     });
 
-    // 檢查無交易訊息
-    expect(screen.getByText("此區塊沒有交易")).toBeDefined();
+    // Check no transactions message
+    expect(screen.getByText("No transactions in this block")).toBeTruthy();
   });
 
-  it("處理 API 錯誤", async () => {
-    // 模擬 API 錯誤
+  it("handles API errors", async () => {
+    // Mock API error
     (SolanaApiService as jest.Mock).mockImplementation(() => ({
       getTransactionsFromBlock: jest
         .fn()
@@ -112,13 +113,15 @@ describe("BlockTransactionsPage", () => {
       render(<BlockTransactionsPage />);
     });
 
-    // 等待錯誤訊息顯示
+    // Wait for error message
     await waitFor(() => {
-      expect(screen.getByText(/無法獲取交易資料/i)).toBeDefined();
+      expect(
+        screen.getByText(/Failed to fetch transaction data/i)
+      ).toBeTruthy();
     });
 
-    // 檢查重試按鈕
-    expect(screen.getByText("重試")).toBeDefined();
-    expect(screen.getByText("返回")).toBeDefined();
+    // Check retry button
+    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByText("Back")).toBeTruthy();
   });
 });
