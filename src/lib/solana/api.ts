@@ -207,6 +207,87 @@ export class SolanaApiService {
   }
 
   /**
+   * 根據區塊哈希獲取特定區塊
+   * @param blockHash 區塊哈希
+   * @returns 區塊數據或 null（如果找不到）
+   */
+  async getBlockByHash(blockHash: string): Promise<BlockData | null> {
+    return this.executeWithRetry(async (conn) => {
+      try {
+        // 使用輔助方法找到對應的槽位
+        const slot = await this.findSlotByBlockhash(blockHash, conn);
+
+        // 如果找不到對應的槽位，返回 null
+        if (slot === null) {
+          return null;
+        }
+
+        // 使用槽位獲取完整的區塊信息
+        return await this.getBlockBySlot(slot);
+      } catch (error) {
+        // 如果是找不到區塊的錯誤，返回 null
+        if (
+          error instanceof Error &&
+          (error.message.includes("not found") ||
+            error.message.includes("Block not found"))
+        ) {
+          return null;
+        }
+        // 其他錯誤重新拋出，由 executeWithRetry 處理
+        throw error;
+      }
+    }, `Failed to fetch block with hash ${blockHash}`);
+  }
+
+  /**
+   * 輔助方法：根據區塊哈希查找對應的槽位
+   * 注意：這是一個簡化實現，實際應用中可能需要更複雜的查找機制，
+   * 如存儲一個哈希到槽位的映射或進行更多的 RPC 調用
+   * @param blockHash 區塊哈希
+   * @param conn Connection 實例
+   * @returns 槽位或 null（如果找不到）
+   * @private
+   */
+  private async findSlotByBlockhash(
+    blockHash: string,
+    conn: Connection
+  ): Promise<number | null> {
+    try {
+      // 獲取當前最高的已完成區塊
+      const { lastValidBlockHeight } = await conn.getLatestBlockhash();
+
+      // 一個實際實現可能會查詢一個區塊範圍來尋找匹配的區塊哈希
+      // 這裡我們從最近的 100 個區塊中搜索，實際應用中可能需要更精確的搜索範圍
+      const startHeight = Math.max(0, lastValidBlockHeight - 100);
+
+      // 獲取區塊範圍
+      const slots = await conn.getBlocks(startHeight, lastValidBlockHeight);
+
+      // 依次檢查每個區塊
+      for (const slot of slots) {
+        try {
+          const block = await conn.getBlock(slot, {
+            maxSupportedTransactionVersion: 0,
+          });
+
+          if (block && block.blockhash === blockHash) {
+            return slot;
+          }
+        } catch (e) {
+          // 忽略單個區塊的錯誤，繼續檢查其他區塊
+          console.warn(`檢查區塊 ${slot} 時出錯:`, e);
+        }
+      }
+
+      // 如果找不到匹配的區塊，返回 null
+      return null;
+    } catch (error) {
+      console.error("查找區塊哈希對應的槽位時出錯:", error);
+      throw error;
+    }
+  }
+
+  /**
    * 獲取特定區塊中的所有交易
    * @param slot 區塊高度
    * @returns 交易數據陣列

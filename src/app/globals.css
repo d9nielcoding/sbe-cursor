@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f9fafb;
   --foreground: #171717;
 }
 
@@ -12,15 +12,26 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* 固定使用亮色主題，不響應系統設置 */
+/*
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
 }
+*/
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* 添加統一的頁面容器樣式 */
+.page-container {
+  background-color: white;
+  min-height: calc(100vh - 64px); /* 減去 header 高度 */
+  padding-bottom: 2rem;
 }

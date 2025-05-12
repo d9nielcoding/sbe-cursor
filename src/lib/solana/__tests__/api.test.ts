@@ -3,6 +3,13 @@
 // 匯入我們的實作和類型
 import { BlockData, SolanaApiService } from "../api";
 
+// 創建模擬的區塊哈希映射到槽位的映射
+const blockHashToSlot = {
+  blockhash_95: 95,
+  blockhash_96: 96,
+  blockhash_100: 100,
+};
+
 // 模擬 Connection 類
 jest.mock("@solana/web3.js", () => {
   return {
@@ -35,6 +42,26 @@ jest.mock("@solana/web3.js", () => {
             },
           ],
         });
+      }),
+      // 模擬獲取最近的已完成區塊，可用於模擬通過哈希查詢區塊
+      getRecentBlockhash: jest.fn().mockImplementation(() => {
+        return Promise.resolve({
+          blockhash: "blockhash_100",
+          lastValidBlockHeight: 100,
+        });
+      }),
+      // 模擬根據槽位查詢區塊時間的方法
+      getBlockTime: jest.fn().mockImplementation((slot: number) => {
+        if (slot < 0 || slot > 100) return Promise.resolve(null);
+        return Promise.resolve(Date.now() / 1000);
+      }),
+      // 模擬查詢區塊是否已完成的方法
+      getBlocks: jest.fn().mockImplementation((startSlot, endSlot) => {
+        const blocks = [];
+        for (let i = startSlot; i <= endSlot && i <= 100; i++) {
+          if (i >= 0) blocks.push(i);
+        }
+        return Promise.resolve(blocks);
       }),
       getParsedTransaction: jest
         .fn()
@@ -148,6 +175,50 @@ describe("SolanaApiService", () => {
 
       await expect(apiService.getBlockBySlot(95)).rejects.toThrow(
         "Failed to fetch block at slot 95"
+      );
+    });
+  });
+
+  describe("getBlockByHash", () => {
+    it("should return block data for valid block hash", async () => {
+      const apiService = new SolanaApiService("mock_endpoint");
+
+      // 模擬一個根據哈希能找到槽位的情況
+      // 通常這需要在 API 服務中實現一個查找機制
+      (apiService as any).findSlotByBlockhash = jest.fn().mockResolvedValue(95);
+
+      const block = await apiService.getBlockByHash("blockhash_95");
+
+      expect(block).not.toBeNull();
+      if (block) {
+        expect(block.blockHeight).toBe(95);
+        expect(block.blockHash).toBe("blockhash_95");
+        expect(block.transactionCount).toBe(1);
+      }
+    });
+
+    it("should return null for invalid block hash", async () => {
+      const apiService = new SolanaApiService("mock_endpoint");
+
+      // 模擬找不到槽位的情況
+      (apiService as any).findSlotByBlockhash = jest
+        .fn()
+        .mockResolvedValue(null);
+
+      const block = await apiService.getBlockByHash("invalid_blockhash");
+      expect(block).toBeNull();
+    });
+
+    it("should handle errors gracefully", async () => {
+      const apiService = new SolanaApiService("mock_endpoint");
+
+      // 模擬錯誤
+      (apiService as any).findSlotByBlockhash = jest
+        .fn()
+        .mockRejectedValue(new Error("Network error"));
+
+      await expect(apiService.getBlockByHash("blockhash_95")).rejects.toThrow(
+        "Failed to fetch block with hash blockhash_95"
       );
     });
   });

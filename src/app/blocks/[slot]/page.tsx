@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BlockData, SolanaApiService } from "../../../lib/solana/api";
+import {
+  BlockData,
+  SolanaApiService,
+  TransactionData,
+} from "../../../lib/solana/api";
+import Header from "../../components/Header";
 
 export default function BlockDetailPage() {
   const params = useParams();
@@ -11,13 +16,14 @@ export default function BlockDetailPage() {
   const slot = Number(params.slot);
 
   const [block, setBlock] = useState<BlockData | null>(null);
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchBlockDetail = async () => {
+    const fetchBlockData = async () => {
       if (isNaN(slot)) {
-        setError("無效的區塊高度");
+        setError("Invalid block height");
         setIsLoading(false);
         return;
       }
@@ -25,16 +31,24 @@ export default function BlockDetailPage() {
       try {
         setIsLoading(true);
         const apiService = new SolanaApiService();
-        const blockData = await apiService.getBlockBySlot(slot);
+
+        // Fetch block details and transaction list in parallel
+        const [blockData, txData] = await Promise.all([
+          apiService.getBlockBySlot(slot),
+          apiService.getTransactionsFromBlock(slot),
+        ]);
 
         if (!blockData) {
-          setError(`找不到區塊高度 ${slot} 的資料`);
+          setError(`Block data not found for height ${slot}`);
         } else {
           setBlock(blockData);
+          setTransactions(txData);
         }
       } catch (err) {
         setError(
-          `無法獲取區塊資料：${err instanceof Error ? err.message : "未知錯誤"}`
+          `Failed to fetch block data: ${
+            err instanceof Error ? err.message : "Unknown error"
+          }`
         );
         console.error(err);
       } finally {
@@ -42,158 +56,240 @@ export default function BlockDetailPage() {
       }
     };
 
-    fetchBlockDetail();
+    fetchBlockData();
   }, [slot]);
 
-  // 格式化時間戳
+  // Format timestamp
   const formatBlockTime = (timestamp: number | null): string => {
     if (!timestamp) return "N/A";
     return new Date(timestamp * 1000).toLocaleString();
   };
 
+  // Truncate hash for display
+  const truncateHash = (hash: string, length: number = 8): string => {
+    if (!hash) return "";
+    return `${hash.substring(0, length)}...${hash.substring(
+      hash.length - length
+    )}`;
+  };
+
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div
-          className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
-          role="status"
-        >
-          <span className="sr-only">載入中...</span>
+      <>
+        <Header currentPage={`Block #${slot}`} />
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+            role="status"
+          >
+            <span className="sr-only">Loading...</span>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-10">
-        <div className="text-red-500 text-xl">{error}</div>
-        <div className="mt-4 flex justify-center space-x-4">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-            onClick={() => window.location.reload()}
-          >
-            重試
-          </button>
-          <button
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-            onClick={() => router.back()}
-          >
-            返回
-          </button>
+      <>
+        <Header currentPage="Block Details" />
+        <div className="container mx-auto px-4 py-10 text-center">
+          <div className="text-red-500 text-xl">{error}</div>
+          <div className="mt-4 flex justify-center space-x-4">
+            <button
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+            <button
+              className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+              onClick={() => router.back()}
+            >
+              Back
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!block) {
     return (
-      <div className="text-center py-10">
-        <div className="text-xl">找不到區塊資料</div>
-        <button
-          className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-          onClick={() => router.back()}
-        >
-          返回
-        </button>
-      </div>
+      <>
+        <Header currentPage="Block Details" />
+        <div className="container mx-auto px-4 py-10 text-center">
+          <div className="text-xl">Block data not found</div>
+          <button
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+            onClick={() => router.back()}
+          >
+            Back
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold">
-          區塊 #{block.blockHeight.toLocaleString()}
-        </h1>
-        <div className="space-x-2">
-          <Link
-            href={`/blocks/${block.blockHeight - 1}`}
-            className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-          >
-            上一區塊
-          </Link>
-          <Link
-            href={`/blocks/${block.blockHeight + 1}`}
-            className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-          >
-            下一區塊
-          </Link>
-          <Link
-            href="/blocks"
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            區塊列表
-          </Link>
-        </div>
-      </div>
+    <>
+      <Header currentPage={`Block #${block.blockHeight.toLocaleString()}`} />
+      <div className="page-container">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">
+                Block #{block.blockHeight.toLocaleString()}
+              </h2>
+            </div>
+            <div className="space-x-2">
+              <Link
+                href={`/blocks/${block.blockHeight - 1}`}
+                className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              >
+                Previous Block
+              </Link>
+              <Link
+                href={`/blocks/${block.blockHeight + 1}`}
+                className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              >
+                Next Block
+              </Link>
+              <Link
+                href="/blocks"
+                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Block List
+              </Link>
+            </div>
+          </div>
 
-      <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">區塊資訊</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">區塊高度</div>
-              <div className="mt-1 text-lg">
-                {block.blockHeight.toLocaleString()}
+          <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Block Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Block Height
+                  </div>
+                  <div className="mt-1 text-lg">
+                    {block.blockHeight.toLocaleString()}
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Block Hash
+                  </div>
+                  <div className="mt-1 text-sm font-mono break-all">
+                    {block.blockHash}
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Timestamp
+                  </div>
+                  <div className="mt-1">{formatBlockTime(block.blockTime)}</div>
+                </div>
               </div>
-            </div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">區塊哈希</div>
-              <div className="mt-1 text-sm font-mono break-all">
-                {block.blockHash}
+              <div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Previous Block Hash
+                  </div>
+                  <div className="mt-1 text-sm font-mono break-all">
+                    {block.previousBlockhash}
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Parent Block
+                  </div>
+                  <div className="mt-1">
+                    <Link
+                      href={`/blocks/${block.parentBlockHash}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {block.parentBlockHash}
+                    </Link>
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <div className="text-sm font-medium text-gray-500">
+                    Transaction Count
+                  </div>
+                  <div className="mt-1">{block.transactionCount}</div>
+                </div>
               </div>
-            </div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">時間戳</div>
-              <div className="mt-1">{formatBlockTime(block.blockTime)}</div>
             </div>
           </div>
-          <div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">
-                前一區塊哈希
-              </div>
-              <div className="mt-1 text-sm font-mono break-all">
-                {block.previousBlockhash}
-              </div>
-            </div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">
-                父區塊哈希
-              </div>
-              <div className="mt-1 text-sm font-mono break-all">
-                {block.parentBlockHash}
-              </div>
-            </div>
-            <div className="mb-4">
-              <div className="text-sm font-medium text-gray-500">交易數量</div>
-              <div className="mt-1">
-                {block.transactionCount.toLocaleString()}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">區塊交易</h2>
-          <Link
-            href={`/blocks/${block.blockHeight}/transactions`}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            查看所有交易
-          </Link>
-        </div>
-        {block.transactionCount > 0 ? (
-          <div className="text-gray-600">
-            此區塊包含 {block.transactionCount.toLocaleString()} 筆交易
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4">
+              Transactions in this Block
+            </h3>
+            {transactions.length === 0 ? (
+              <div className="text-gray-500 py-4 text-center">
+                No transactions in this block
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Transaction Hash
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fee
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {transactions.map((tx) => (
+                      <tr key={tx.transactionHash} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
+                          {truncateHash(tx.transactionHash)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              tx.status === "confirmed" ||
+                              tx.status === "finalized"
+                                ? "bg-green-100 text-green-800"
+                                : tx.status === "failed"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {tx.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {tx.fee}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <Link
+                            href={`/transactions/${tx.transactionHash}`}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-gray-600">此區塊沒有交易</div>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

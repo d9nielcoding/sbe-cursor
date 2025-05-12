@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Solana 區塊鏈瀏覽器",
-  description: "瀏覽 Solana 區塊鏈上的區塊、交易和帳戶資訊",
+  title: "Solana Blockchain Explorer",
+  description:
+    "Browse blocks, transactions, and accounts on the Solana blockchain",
 };
 
 export default function RootLayout({
@@ -13,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased bg-white">{children}</body>
     </html>
   );
 }

@@ -35,7 +35,7 @@
     - List Blocks
     - List Transactions from a block
     - Show Transaction details (including instructions / accounts / log)
-    - Can search by Block hash / Tx hash
+    - Can search by Block slot / Tx hash
     - Can sort by timestamp
 
 ## Advanced Requirements
