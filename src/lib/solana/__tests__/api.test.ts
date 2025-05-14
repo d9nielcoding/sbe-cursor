@@ -124,7 +124,7 @@ describe("SolanaApiService", () => {
   describe("getRecentBlocks", () => {
     it("should return recent blocks", async () => {
       // 1. Create SolanaApiService instance
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       // 2. Call method and get results
       const blocks = await apiService.getRecentBlocks(3);
@@ -152,7 +152,7 @@ describe("SolanaApiService", () => {
       } as unknown as Connection;
 
       // 2. Create API service and replace both connections
-      const apiService = new TestSolanaApiService("mock_endpoint");
+      const apiService = new TestSolanaApiService();
       apiService.setTestConnection(mockConnection);
       apiService.setTestFallbackConnection(mockConnection); // Also make fallback fail
 
@@ -165,7 +165,7 @@ describe("SolanaApiService", () => {
 
   describe("getBlockBySlot", () => {
     it("should return block data for valid slot", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const block = await apiService.getBlockBySlot(95);
 
@@ -180,7 +180,7 @@ describe("SolanaApiService", () => {
     });
 
     it("should return null for invalid slot", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const block = await apiService.getBlockBySlot(101);
       expect(block).toBeNull();
@@ -191,7 +191,7 @@ describe("SolanaApiService", () => {
         getBlock: jest.fn().mockRejectedValue(new Error("Network error")),
       } as unknown as Connection;
 
-      const apiService = new TestSolanaApiService("mock_endpoint");
+      const apiService = new TestSolanaApiService();
       apiService.setTestConnection(mockConnection);
       apiService.setTestFallbackConnection(mockConnection);
 
@@ -203,7 +203,7 @@ describe("SolanaApiService", () => {
 
   describe("getTransactionsFromBlock", () => {
     it("should return transactions from a block", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const transactions = await apiService.getTransactionsFromBlock(95);
 
@@ -216,7 +216,7 @@ describe("SolanaApiService", () => {
     });
 
     it("should return empty array for invalid block", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const transactions = await apiService.getTransactionsFromBlock(101);
       expect(transactions).toEqual([]);
@@ -227,7 +227,7 @@ describe("SolanaApiService", () => {
         getBlock: jest.fn().mockRejectedValue(new Error("Network error")),
       } as unknown as Connection;
 
-      const apiService = new TestSolanaApiService("mock_endpoint");
+      const apiService = new TestSolanaApiService();
       apiService.setTestConnection(mockConnection);
       apiService.setTestFallbackConnection(mockConnection);
 
@@ -239,7 +239,7 @@ describe("SolanaApiService", () => {
 
   describe("getTransactionBySignature", () => {
     it("should return transaction details for valid signature", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const transaction = await apiService.getTransactionBySignature(
         "signature_95_1"
@@ -258,7 +258,7 @@ describe("SolanaApiService", () => {
     });
 
     it("should return null for invalid signature", async () => {
-      const apiService = new SolanaApiService("mock_endpoint");
+      const apiService = new SolanaApiService();
 
       const transaction = await apiService.getTransactionBySignature(
         "invalid_signature"
@@ -273,7 +273,7 @@ describe("SolanaApiService", () => {
           .mockRejectedValue(new Error("Network error")),
       } as unknown as Connection;
 
-      const apiService = new TestSolanaApiService("mock_endpoint");
+      const apiService = new TestSolanaApiService();
       apiService.setTestConnection(mockConnection);
       apiService.setTestFallbackConnection(mockConnection);
 

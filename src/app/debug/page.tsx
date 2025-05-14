@@ -1,13 +1,37 @@
 "use client";
 
-import { solanaApiService } from "@/lib/solana/api";
+import { NetworkType, solanaApiService } from "@/lib/solana/api";
 import { useEffect, useState } from "react";
 
+// 定義類型
+interface ClientEnv {
+  NEXT_PUBLIC_SOLANA_NETWORK?: string;
+  network: NetworkType | string;
+  isBrowser: boolean;
+  timestamp: string;
+}
+
+interface ServerEnv {
+  NEXT_PUBLIC_SOLANA_NETWORK?: string;
+  NODE_ENV?: string;
+  SERVER_SIDE: boolean;
+  rpcEndpoints?: Record<string, string>;
+  timestamp: string;
+}
+
+interface ApiTestResult {
+  slot?: number;
+  success: boolean;
+  network?: NetworkType | string;
+  timestamp?: string;
+  error?: string;
+}
+
 export default function DebugPage() {
-  const [clientEnv, setClientEnv] = useState<any>(null);
-  const [serverEnv, setServerEnv] = useState<any>(null);
+  const [clientEnv, setClientEnv] = useState<ClientEnv | null>(null);
+  const [serverEnv, setServerEnv] = useState<ServerEnv | null>(null);
   const [loading, setLoading] = useState(true);
-  const [apiTest, setApiTest] = useState<any>(null);
+  const [apiTest, setApiTest] = useState<ApiTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
 
@@ -16,7 +40,7 @@ export default function DebugPage() {
     try {
       const res = await fetch(`/api/debug-env?t=${Date.now()}`);
       const data = await res.json();
-      setServerEnv(data);
+      setServerEnv(data as ServerEnv);
     } catch (err) {
       console.error("Error fetching server env:", err);
       setError("Error fetching server env");
@@ -34,7 +58,6 @@ export default function DebugPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          network: solanaApiService.getNetwork(),
           method: "getSlot",
           params: [],
         }),

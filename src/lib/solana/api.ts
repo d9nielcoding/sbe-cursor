@@ -98,7 +98,7 @@ export class SolanaApiService {
   private async initializeNetwork(): Promise<void> {
     try {
       // 使用一個簡單查詢來獲取網絡信息
-      const result = await this.makeRpcRequest("getSlot", []);
+      await this.makeRpcRequest("getSlot", []);
 
       // 網絡信息會從伺服器響應中的網絡標頭中獲取
       // 此時 this.network 已被 makeRpcRequest 設置
@@ -158,7 +158,10 @@ export class SolanaApiService {
   /**
    * Make RPC request via proxy API route to protect API keys
    */
-  private async makeRpcRequest(method: string, params: any[]): Promise<any> {
+  private async makeRpcRequest(
+    method: string,
+    params: unknown[]
+  ): Promise<any> {
     try {
       const response = await fetch(API_PROXY_URL, {
         method: "POST",
@@ -425,7 +428,7 @@ export class SolanaApiService {
   async getTransactionBySignature(
     signature: string
   ): Promise<TransactionDetailData | null> {
-    return this.executeWithRetry(async () => {
+    return this.executeWithRetry<TransactionDetailData | null>(async () => {
       const transaction = await this.makeRpcRequest("getTransaction", [
         signature,
         {
@@ -437,7 +440,15 @@ export class SolanaApiService {
         return null;
       }
 
-      const { blockTime, slot, meta } = transaction;
+      const { blockTime, slot, meta } = transaction as {
+        blockTime: number | null;
+        slot: number;
+        meta: {
+          err: any; // 使用具體類型或 unknown，具體類型取決於實際的錯誤結構
+          fee: number;
+          logMessages: string[];
+        } | null;
+      };
 
       // Process and convert instruction information
       const instructions = transaction.transaction.message.instructions.map(
