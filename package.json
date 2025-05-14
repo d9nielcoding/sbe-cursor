@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && cp _routes.json .next/",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "deploy:cloudflare": "npx wrangler pages publish .next --project-name=solana-blockchain-explorer --commit-dirty=true",
-    "build:cloudflare": "npm run build && npm run deploy:cloudflare",
+    "build:cloudflare": "next build && cp _routes.json .next/ && npm run deploy:cloudflare",
     "serve:local": "next start"
   },
   "dependencies": {
