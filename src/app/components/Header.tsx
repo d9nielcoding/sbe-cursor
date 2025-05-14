@@ -88,15 +88,6 @@ export default function Header({ currentPage }: HeaderProps) {
               >
                 Blocks
               </Link>
-              <Link
-                href="/transactions"
-                className={cn(
-                  "text-gray-600 hover:text-blue-600 font-medium transition-colors",
-                  currentPage === "Transactions" && "text-blue-600"
-                )}
-              >
-                Transactions
-              </Link>
             </nav>
           </div>
 
