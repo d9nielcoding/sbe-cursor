@@ -1,8 +1,9 @@
 import useSWR, { SWRConfiguration } from "swr";
-import { SolanaApiService } from "../solana/api";
+import { solanaApiService } from "../solana/api";
 
-// 創建 API 服務實例
-const apiService = new SolanaApiService();
+// 使用單例服務實例
+// const apiService = new SolanaApiService();
+const apiService = solanaApiService;
 
 // 緩存配置
 export const CACHE_CONFIG = {

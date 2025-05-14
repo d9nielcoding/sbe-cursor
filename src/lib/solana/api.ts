@@ -32,108 +32,200 @@ export interface TransactionDetailData extends TransactionData {
   logs: string[];
 }
 
-// RPC endpoints
-const RPC_ENDPOINTS = {
-  DEVNET: "https://api.devnet.solana.com",
-  TESTNET: "https://api.testnet.solana.com",
-  MAINNET_BETA: "https://api.mainnet-beta.solana.com",
-  // Backup public endpoints
-  BACKUP_DEVNET: "https://solana-devnet-rpc.publicnode.com",
-  BACKUP_MAINNET: "https://solana-mainnet-rpc.publicnode.com",
+// Environment variable helper function for client-side
+const getEnvVar = (key: string, defaultValue: string): string => {
+  if (typeof window !== "undefined") {
+    // Client-side: Check window.__ENV__ first (for runtime injected values)
+    const clientValue = (window as any).__ENV__?.[key];
+    if (clientValue) return clientValue;
+  }
+
+  // Use process.env for SSR and as fallback
+  return process.env[key] || defaultValue;
 };
 
+// Network types
+export type NetworkType = "devnet" | "testnet" | "mainnet";
+
+// API proxy constants
+const API_PROXY_URL = "/api/solana";
+
 // Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const MAX_RETRIES = parseInt(getEnvVar("NEXT_PUBLIC_SOLANA_MAX_RETRIES", "3"));
+const RETRY_DELAY = parseInt(
+  getEnvVar("NEXT_PUBLIC_SOLANA_RETRY_DELAY", "1000")
+); // milliseconds
 
 // Sleep function for delays
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * SolanaApiService provides methods for interacting with the Solana blockchain
+ * SolanaApiService 提供與 Solana 區塊鏈交互的方法
+ * 使用伺服器端代理以保護 API 密鑰
  */
 export class SolanaApiService {
   private connection: Connection;
   private fallbackConnection: Connection | null = null;
+  private network: NetworkType | null = null;
 
-  constructor(
-    endpoint: string = RPC_ENDPOINTS.DEVNET,
-    fallbackEndpoint: string | null = RPC_ENDPOINTS.BACKUP_DEVNET
-  ) {
+  constructor() {
+    // 初始化連接對象，使用公共端點（僅用於備用）
     const connectionConfig: ConnectionConfig = {
       commitment: "confirmed",
-      confirmTransactionInitialTimeout: 60000, // 60 seconds
+      confirmTransactionInitialTimeout: 60000, // 60 秒
       disableRetryOnRateLimit: false,
     };
 
-    this.connection = new Connection(endpoint, connectionConfig);
+    // 創建臨時連接（具體網絡從伺服器獲取）
+    // 注意：這些連接僅用於緊急/開發環境下的後備
+    this.connection = new Connection(
+      "https://api.devnet.solana.com", // 臨時使用 devnet
+      connectionConfig
+    );
 
-    // Initialize backup connection if provided
-    if (fallbackEndpoint) {
-      this.fallbackConnection = new Connection(
-        fallbackEndpoint,
-        connectionConfig
-      );
+    this.fallbackConnection = new Connection(
+      "https://solana-devnet-rpc.publicnode.com",
+      connectionConfig
+    );
+
+    // 在構造函數中調用異步方法來初始化網絡
+    this.initializeNetwork();
+  }
+
+  /**
+   * 異步初始化網絡設定，從伺服器獲取
+   */
+  private async initializeNetwork(): Promise<void> {
+    try {
+      // 使用一個簡單查詢來獲取網絡信息
+      const result = await this.makeRpcRequest("getSlot", []);
+
+      // 網絡信息會從伺服器響應中的網絡標頭中獲取
+      // 此時 this.network 已被 makeRpcRequest 設置
+
+      if (this.network) {
+        this.logNetworkEnvironment();
+      }
+    } catch (error) {
+      console.warn("Failed to initialize network:", error);
+      // 如果初始化失敗，使用 devnet 作為後備
+      this.network = "devnet";
+      this.logNetworkEnvironment();
     }
   }
 
   /**
-   * Execute operation with retry mechanism, using backup connection if needed
+   * Log the current network environment to the console
+   */
+  private logNetworkEnvironment(): void {
+    if (!this.network) {
+      console.log("Network not yet initialized");
+      return;
+    }
+
+    const networkName = this.network.toUpperCase();
+    const styleMap = {
+      MAINNET:
+        "background: #059669; color: white; padding: 2px 6px; border-radius: 4px;",
+      DEVNET:
+        "background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px;",
+      TESTNET:
+        "background: #eab308; color: black; padding: 2px 6px; border-radius: 4px;",
+    };
+
+    const style =
+      styleMap[networkName as keyof typeof styleMap] ||
+      "background: #6b7280; color: white; padding: 2px 6px; border-radius: 4px;";
+
+    // 獲取處理環境 (客戶端或服務器端)
+    const environment = typeof window !== "undefined" ? "CLIENT" : "SERVER";
+
+    console.log(
+      `%c SOLANA ${networkName} (${environment}) `,
+      style,
+      `Connected to Solana ${this.network} network`
+    );
+  }
+
+  /**
+   * Get the current network
+   */
+  public getNetwork(): NetworkType {
+    // 如果網絡尚未初始化，返回一個預設值
+    return this.network || ("unknown" as NetworkType);
+  }
+
+  /**
+   * Make RPC request via proxy API route to protect API keys
+   */
+  private async makeRpcRequest(method: string, params: any[]): Promise<any> {
+    try {
+      const response = await fetch(API_PROXY_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          method,
+          params,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Proxy API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      // 從響應中獲取網絡信息（如果有）
+      if (
+        data.network &&
+        ["devnet", "testnet", "mainnet"].includes(data.network)
+      ) {
+        // 只有在網絡更改時才更新和記錄
+        if (this.network !== data.network) {
+          this.network = data.network;
+          // this.logNetworkEnvironment(); // 避免過多日誌
+        }
+      }
+
+      if (data.error) {
+        throw new Error(`RPC Error: ${JSON.stringify(data.error)}`);
+      }
+
+      return data.result;
+    } catch (error) {
+      // 如果發生錯誤，直接拋出，不再嘗試 fallback（服務器已處理 fallback）
+      throw error;
+    }
+  }
+
+  /**
+   * Execute operation with retry mechanism
    */
   private async executeWithRetry<T>(
-    operation: (conn: Connection) => Promise<T>,
+    operation: () => Promise<T>,
     errorMessage: string,
     retries = MAX_RETRIES
   ): Promise<T> {
     let lastError: Error | null = null;
 
-    // Try with primary connection
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        return await operation(this.connection);
+        return await operation();
       } catch (error: unknown) {
-        // 將 any 類型改為更具體的 unknown 類型
         lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMsg = lastError.message || "";
 
-        // 將 error.message 的訪問改為更安全的方式
-        const errorMessage = lastError.message || "";
-
-        // Check if rate limit or transaction version error
+        // Check if rate limit error
         const isRateLimitError =
-          errorMessage.includes("429") ||
-          errorMessage.includes("403") ||
-          errorMessage.includes("Too many requests");
+          errorMsg.includes("429") ||
+          errorMsg.includes("403") ||
+          errorMsg.includes("Too many requests");
 
-        const isVersionError =
-          errorMessage.includes("Transaction version") ||
-          (lastError as Error & { code?: number })?.code === -32015;
-
-        // If backup connection available and rate limit hit, try backup
-        if (
-          this.fallbackConnection &&
-          (isRateLimitError || attempt === retries - 1)
-        ) {
-          console.warn("Switching to backup RPC endpoint...");
-          try {
-            return await operation(this.fallbackConnection);
-          } catch (fallbackError: unknown) {
-            // 同樣將 any 類型改為 unknown
-            const fbError =
-              fallbackError instanceof Error
-                ? fallbackError
-                : new Error(String(fallbackError));
-            console.error("Backup RPC endpoint also failed:", fbError);
-            lastError = fbError;
-          }
-        }
-
-        // If transaction version error, fail immediately
-        if (isVersionError) {
-          throw lastError;
-        }
-
-        // If not rate limit and last attempt, fail
-        if (!isRateLimitError && attempt === retries - 1) {
+        // If last attempt or not a rate limit error we can retry, throw
+        if (attempt === retries - 1 || !isRateLimitError) {
           throw lastError;
         }
 
@@ -158,12 +250,10 @@ export class SolanaApiService {
    * @returns The leader's public key as string or null if not found
    */
   async getSlotLeader(slot: number): Promise<string | null> {
-    return this.executeWithRetry(async (conn) => {
+    return this.executeWithRetry(async () => {
       try {
-        // getSlotLeaders requires start slot and limit
-        // Here we just want one slot leader, so limit = 1
-        const leaders = await conn.getSlotLeaders(slot, 1);
-        return leaders.length > 0 ? leaders[0].toString() : null;
+        const result = await this.makeRpcRequest("getSlotLeader", [slot]);
+        return result || null;
       } catch (error) {
         console.warn(`Unable to fetch slot leader for ${slot}`, error);
         return null;
@@ -177,13 +267,13 @@ export class SolanaApiService {
    * @returns First child slot number or null if none found
    */
   async getChildSlots(slot: number): Promise<number[]> {
-    return this.executeWithRetry(async (conn) => {
+    return this.executeWithRetry(async () => {
       try {
-        // To find potential child slots, we look at subsequent slots
-        // But we only return the first one as per requirement
-        const blocks = await conn.getBlocks(slot + 1, slot + 2);
-        // Return array with only the first child slot if found
-        return blocks.length > 0 ? [blocks[0]] : [];
+        const result = await this.makeRpcRequest("getBlocks", [
+          slot + 1,
+          slot + 2,
+        ]);
+        return result.length > 0 ? [result[0]] : [];
       } catch (error) {
         console.warn(`Unable to fetch child slot for ${slot}`, error);
         return [];
@@ -197,9 +287,9 @@ export class SolanaApiService {
    * @returns Array of block data
    */
   async getRecentBlocks(limit: number = 10): Promise<BlockData[]> {
-    return this.executeWithRetry(async (conn) => {
+    return this.executeWithRetry(async () => {
       // Get current block height
-      const currentSlot = await conn.getSlot();
+      const currentSlot = await this.makeRpcRequest("getSlot", []);
 
       // Fetch blocks in descending order
       const blocks: BlockData[] = [];
@@ -209,9 +299,13 @@ export class SolanaApiService {
         if (targetSlot < 0) break;
 
         try {
-          const block = await conn.getBlock(targetSlot, {
-            maxSupportedTransactionVersion: 0,
-          });
+          const block = await this.makeRpcRequest("getBlock", [
+            targetSlot,
+            {
+              maxSupportedTransactionVersion: 0,
+            },
+          ]);
+
           if (block) {
             // Get slot leader (optional)
             let leader: string | null = null;
@@ -249,10 +343,13 @@ export class SolanaApiService {
    * @returns Block data or null if not found
    */
   async getBlockBySlot(slot: number): Promise<BlockData | null> {
-    return this.executeWithRetry(async (conn) => {
-      const block = await conn.getBlock(slot, {
-        maxSupportedTransactionVersion: 0,
-      });
+    return this.executeWithRetry(async () => {
+      const block = await this.makeRpcRequest("getBlock", [
+        slot,
+        {
+          maxSupportedTransactionVersion: 0,
+        },
+      ]);
 
       if (!block) {
         return null;
@@ -293,16 +390,19 @@ export class SolanaApiService {
    * @returns Array of transaction data
    */
   async getTransactionsFromBlock(slot: number): Promise<TransactionData[]> {
-    return this.executeWithRetry(async (conn) => {
-      const block = await conn.getBlock(slot, {
-        maxSupportedTransactionVersion: 0,
-      });
+    return this.executeWithRetry(async () => {
+      const block = await this.makeRpcRequest("getBlock", [
+        slot,
+        {
+          maxSupportedTransactionVersion: 0,
+        },
+      ]);
 
       if (!block || !block.transactions) {
         return [];
       }
 
-      return block.transactions.map((tx) => {
+      return block.transactions.map((tx: any) => {
         const { transaction, meta } = tx;
 
         return {
@@ -311,13 +411,7 @@ export class SolanaApiService {
           slot: slot,
           status: meta?.err ? "failed" : "confirmed",
           fee: meta?.fee || 0,
-          accounts: transaction.message.getAccountKeys?.()
-            ? transaction.message
-                .getAccountKeys()
-                .keySegments()
-                .flat()
-                .map((key) => key.toString())
-            : [],
+          accounts: transaction.message.accountKeys || [],
         };
       });
     }, `Failed to fetch transactions for block at slot ${slot}`);
@@ -331,10 +425,13 @@ export class SolanaApiService {
   async getTransactionBySignature(
     signature: string
   ): Promise<TransactionDetailData | null> {
-    return this.executeWithRetry(async (conn) => {
-      const transaction = await conn.getParsedTransaction(signature, {
-        maxSupportedTransactionVersion: 0,
-      });
+    return this.executeWithRetry(async () => {
+      const transaction = await this.makeRpcRequest("getTransaction", [
+        signature,
+        {
+          maxSupportedTransactionVersion: 0,
+        },
+      ]);
 
       if (!transaction) {
         return null;
@@ -342,26 +439,12 @@ export class SolanaApiService {
 
       const { blockTime, slot, meta } = transaction;
 
-      // 定義指令的強類型
-      type Instruction = {
-        programId: { toString(): string };
-        accounts?: { toString(): string }[];
-        data?: string;
-      };
-
-      // 定義賬戶的強類型
-      type AccountKey = {
-        pubkey: { toString(): string };
-      };
-
       // Process and convert instruction information
       const instructions = transaction.transaction.message.instructions.map(
-        (ix: Instruction) => {
+        (ix: any) => {
           return {
-            programId: ix.programId.toString(),
-            accounts: ix.accounts
-              ? ix.accounts.map((account) => account.toString())
-              : [],
+            programId: ix.programId,
+            accounts: ix.accounts || [],
             data: ix.data || "",
           };
         }
@@ -373,12 +456,14 @@ export class SolanaApiService {
         slot: slot || 0,
         status: meta?.err ? "failed" : slot ? "confirmed" : "processed",
         fee: meta?.fee || 0,
-        accounts: transaction.transaction.message.accountKeys.map(
-          (key: AccountKey) => key.pubkey.toString()
-        ),
+        accounts: transaction.transaction.message.accountKeys || [],
         instructions,
         logs: meta?.logMessages || [],
       };
     }, `Failed to fetch transaction ${signature}`);
   }
 }
+
+// Singleton instance
+console.log("Creating SolanaApiService singleton");
+export const solanaApiService = new SolanaApiService();

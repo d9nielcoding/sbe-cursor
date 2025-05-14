@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import NetworkStatus from "../../components/NetworkStatus";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
@@ -58,27 +59,32 @@ export default function Header({ currentPage }: HeaderProps) {
       <div className="container mx-auto px-4 py-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center">
-            <Link
-              href="/"
-              className="text-blue-600 font-bold text-xl mr-6 flex items-center"
-            >
-              <span className="text-blue-500 mr-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="w-6 h-6"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+            <div className="flex items-center">
+              <Link
+                href="/"
+                className="text-blue-600 font-bold text-xl mr-2 flex items-center"
+              >
+                <span className="text-blue-500 mr-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-6 h-6"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </span>
+                Solana Explorer
+              </Link>
+              <span className="ml-2">
+                <NetworkStatus />
               </span>
-              Solana Explorer
-            </Link>
-            <nav className="hidden md:flex space-x-6">
+            </div>
+            <nav className="hidden md:flex space-x-6 ml-6">
               <Link
                 href="/blocks"
                 className={cn(

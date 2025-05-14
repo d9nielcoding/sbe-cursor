@@ -1,46 +1,45 @@
 # Solana Blockchain Explorer
 
-A modern, fast, and user-friendly explorer for the Solana blockchain. This application provides an intuitive interface to browse blocks, transactions, and accounts on the Solana network.
+A modern, fast, and user-friendly Solana blockchain explorer.
 
-## Features
+## Completed Features
 
 - **Block Explorer**
-  - View recent blocks with detailed information
-  - Display block height, hash, timestamp, and transaction count
-  - Navigate between blocks with previous/next functionality
-
+  - View detailed information of recent blocks (block height, hash, timestamp, transaction count)
+  - Navigate between blocks
+  
 - **Transaction Viewer**
-  - List all transactions within a block
-  - View detailed transaction information including instructions, accounts, and logs
-  - Display transaction status, block references, and timestamps
-
+  - View all transactions within a block
+  - Transaction details (instructions, accounts, logs)
+  
 - **Search Functionality**
-  - Search by block slot number or transaction hash
+  - Support search by block slot number or transaction hash
   - Smart identification of search input type
-  - Quick navigation to relevant information
-
+  
 - **Performance Optimizations**
-  - Efficient API caching with SWR (Stale-While-Revalidate)
-  - Responsive design for all device sizes
-  - Optimized loading states and error handling
+  - API caching strategy using SWR
+  - Responsive design for various device sizes
 
 ## Architecture
 
-- **Frontend Framework**: Next.js with TypeScript
-- **Styling**: TailwindCSS for responsive design
-- **Testing**: Jest with React Testing Library
-- **API Integration**: Custom wrapper around Solana Web3.js
-- **Caching Strategy**: SWR with custom cache configuration
-- **Deployment**: Cloudflare Pages
+- **Frontend Framework**: Next.js + TypeScript
+- **Styling**: TailwindCSS
+- **Testing**: Jest + React Testing Library
+- **API Integration**: Custom wrapper based on Solana Web3.js
+- **Deployment**: Vercel
 
-## Getting Started
+### Directory Structure
 
-### Prerequisites
+```
+/src
+  /app           # Pages and routes
+    /api         # API routes (server-side)
+  /components    # Reusable components
+  /lib           # Utility functions and shared logic
+  /types         # TypeScript type definitions
+```
 
-- Node.js 18.x or later
-- npm 9.x or later
-
-### Installation
+## Installation
 
 1. Clone the repository:
    ```bash
@@ -53,75 +52,73 @@ A modern, fast, and user-friendly explorer for the Solana blockchain. This appli
    npm install
    ```
 
-3. Run the development server:
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
+   Then edit `.env.local` to add your private RPC endpoints with API keys.
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Build & Deployment Options
+## Build and Deployment
 
 ### Standard Build
 
-To create a production build:
-
 ```bash
 npm run build
-```
-
-To start the production server:
-
-```bash
 npm start
 ```
 
-### Deployment to Cloudflare Pages
+### Vercel Deployment
 
-This project can be deployed to Cloudflare Pages:
-
-1. Install Wrangler CLI:
-   ```bash
-   npm install -g wrangler
-   ```
-
-2. Login to your Cloudflare account:
-   ```bash
-   wrangler login
-   ```
-
-3. Run the build:
-   ```bash
-   npm run build
-   ```
-
-4. Deploy to Cloudflare Pages:
-   ```bash
-   npx wrangler pages deploy .next
-   ```
-
-#### Deployment Notes
-
-1. **Client-Side Rendering**: 
-   - The application uses client-side rendering with SWR for data fetching
-   - This approach provides good performance while maintaining flexibility
-   - All API data is fetched on the client side
-
-2. **Deployment Challenges**:
-   - Next.js applications with dynamic routes can be challenging to deploy as fully static sites
-   - The current configuration uses client-side navigation and data fetching
-
-3. **Alternative Deployment Options**:
-   - For static sites only, you can modify `next.config.ts` to use `output: "export"`
-   - For full server-side rendering support, consider Vercel or another Next.js-optimized hosting platform
+1. Fork this repository to your GitHub account
+2. Connect the repository to Vercel:
+   - Sign in to Vercel and click "Add New" > "Project"
+   - Import your GitHub repository
+   - Configure environment variables for your RPC endpoints
+   - Click "Deploy"
 
 ## Configuration
 
-The application can be configured through environment variables:
+This application uses a server-side proxy for Solana RPC requests to protect API keys.
 
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Primary Solana RPC endpoint (defaults to public endpoint)
-- `NEXT_PUBLIC_FALLBACK_URLS`: Comma-separated list of fallback RPC endpoints
-- `NEXT_PUBLIC_RATE_LIMIT`: Rate limit for API requests (requests per minute)
+### Environment Variables
+
+Configure the application using two types of environment variables:
+
+1. **Private variables** (server-side only):
+   ```
+   # Private Solana RPC endpoints (not exposed to client)
+   SOLANA_RPC_URL_DEVNET=https://api.devnet.solana.com
+   SOLANA_FALLBACK_URL_DEVNET=https://explorer-api.devnet.solana.com
+   
+   SOLANA_RPC_URL_MAINNET=your-drpc-mainnet-api-key-url-here
+   SOLANA_FALLBACK_URL_MAINNET=your-fallback-mainnet-api-key-url-here
+   ```
+
+2. **Public variables** (safe for client):
+   ```
+   # Public environment variables (safe for client)
+   NEXT_PUBLIC_SOLANA_NETWORK=devnet
+   NEXT_PUBLIC_SOLANA_MAX_RETRIES=3
+   NEXT_PUBLIC_SOLANA_RETRY_DELAY=1000
+   ```
+
+> **Note**: 
+> - By default, this application connects to the **Solana Devnet**. 
+> - To use a different network, set the `NEXT_PUBLIC_SOLANA_NETWORK` environment variable to either `devnet`, `testnet`, or `mainnet`.
+> - For production use with Mainnet, add your private RPC service URLs with API keys to the server-side environment variables. The proxy API route will use these URLs while keeping the API keys secure.
+
+### API Proxy Architecture
+
+1. Client makes a request to internal API route (`/api/solana`)
+2. Server-side API route uses private environment variables to make authenticated requests to Solana RPC
+3. API keys are never exposed to the client browser
 
 ## License
 
