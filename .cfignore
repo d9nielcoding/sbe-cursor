@@ -1,0 +1,45 @@
+# Dependency directories
+node_modules/
+.next/
+
+# Local env files
+.env*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git and versioning
+.git/
+.gitignore
+.gitlab-ci.yml
+
+# macOS
+.DS_Store
+
+# Testing related
+coverage/
+jest.config.*
+test/
+__tests__/
+*.test.*
+*.spec.*
+.swc
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+*.log
+*.bak
+*.tmp
+.cache/
+
+# Build artifacts that will be regenerated
+dist/
+build/
+*.tsbuildinfo 

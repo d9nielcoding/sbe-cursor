@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "include": ["/*"],
+  "exclude": [
+    "/api/*",
+    "/_next/*",
+    "/favicon.ico"
+  ],
+  "routes": [
+    {
+      "src": "/blocks/(?<slot>[^/]+)/transactions",
+      "dest": "/blocks/[slot]/transactions?slot=$slot"
+    },
+    {
+      "src": "/blocks/(?<slot>[^/]+)",
+      "dest": "/blocks/[slot]?slot=$slot"
+    },
+    {
+      "src": "/transactions/(?<signature>[^/]+)",
+      "dest": "/transactions/[signature]?signature=$signature"
+    },
+    {
+      "src": "/(.*)",
+      "status": 404,
+      "dest": "/not-found"
+    }
+  ]
+} 

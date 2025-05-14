@@ -1,3 +1,4 @@
+import BlockDetailPage from "@/app/blocks/[slot]/page";
 import {
   act,
   fireEvent,
@@ -5,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import * as navigation from "next/navigation";
 
 // Mock dependencies to avoid circular dependencies
 jest.mock("next/navigation", () => ({
@@ -28,9 +30,6 @@ jest.mock("../../lib/solana/api", () => ({
     getSlotLeader: mockGetSlotLeader,
   })),
 }));
-
-// Import component after mocking
-import BlockDetailPage from "../blocks/[slot]/page";
 
 // Mock block data
 const mockBlockData = {
@@ -197,9 +196,7 @@ describe("BlockDetailPage", () => {
 
   it("handles case when block is not found", async () => {
     // Mock invalid block number
-    jest
-      .spyOn(require("next/navigation"), "useParams")
-      .mockReturnValue({ slot: "999" });
+    jest.spyOn(navigation, "useParams").mockReturnValue({ slot: "999" });
     mockGetBlockBySlot.mockResolvedValue(null);
 
     await act(async () => {

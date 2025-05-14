@@ -1,14 +1,8 @@
 // First step: Define the expected interfaces before implementation
 
 // Import our implementations and types
+import { Connection } from "@solana/web3.js";
 import { BlockData, SolanaApiService } from "../api";
-
-// Create a mock mapping of block hashes to slots
-const blockHashToSlot = {
-  blockhash_95: 95,
-  blockhash_96: 96,
-  blockhash_100: 100,
-};
 
 // Mock Connection class
 jest.mock("@solana/web3.js", () => {
@@ -112,6 +106,20 @@ jest.mock("@solana/web3.js", () => {
   };
 });
 
+// 為測試創建一個 SolanaApiService 的子類，允許訪問私有成員
+class TestSolanaApiService extends SolanaApiService {
+  // 創建訪問私有屬性的方法
+  setTestConnection(connection: Connection): void {
+    // @ts-expect-error - 允許在測試中訪問私有屬性
+    this.connection = connection;
+  }
+
+  setTestFallbackConnection(connection: Connection | null): void {
+    // @ts-expect-error - 允許在測試中訪問私有屬性
+    this.fallbackConnection = connection;
+  }
+}
+
 describe("SolanaApiService", () => {
   describe("getRecentBlocks", () => {
     it("should return recent blocks", async () => {
@@ -141,12 +149,12 @@ describe("SolanaApiService", () => {
       const mockConnection = {
         getSlot: jest.fn().mockRejectedValue(new Error("Network error")),
         getBlock: jest.fn(),
-      };
+      } as unknown as Connection;
 
       // 2. Create API service and replace both connections
-      const apiService = new SolanaApiService("mock_endpoint");
-      (apiService as any).connection = mockConnection;
-      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
+      const apiService = new TestSolanaApiService("mock_endpoint");
+      apiService.setTestConnection(mockConnection);
+      apiService.setTestFallbackConnection(mockConnection); // Also make fallback fail
 
       // 3. Validate error handling
       await expect(apiService.getRecentBlocks()).rejects.toThrow(
@@ -181,11 +189,11 @@ describe("SolanaApiService", () => {
     it("should handle errors gracefully", async () => {
       const mockConnection = {
         getBlock: jest.fn().mockRejectedValue(new Error("Network error")),
-      };
+      } as unknown as Connection;
 
-      const apiService = new SolanaApiService("mock_endpoint");
-      (apiService as any).connection = mockConnection;
-      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
+      const apiService = new TestSolanaApiService("mock_endpoint");
+      apiService.setTestConnection(mockConnection);
+      apiService.setTestFallbackConnection(mockConnection);
 
       await expect(apiService.getBlockBySlot(95)).rejects.toThrow(
         "Network error"
@@ -217,11 +225,11 @@ describe("SolanaApiService", () => {
     it("should handle errors gracefully", async () => {
       const mockConnection = {
         getBlock: jest.fn().mockRejectedValue(new Error("Network error")),
-      };
+      } as unknown as Connection;
 
-      const apiService = new SolanaApiService("mock_endpoint");
-      (apiService as any).connection = mockConnection;
-      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
+      const apiService = new TestSolanaApiService("mock_endpoint");
+      apiService.setTestConnection(mockConnection);
+      apiService.setTestFallbackConnection(mockConnection);
 
       await expect(apiService.getTransactionsFromBlock(95)).rejects.toThrow(
         "Network error"
@@ -263,11 +271,11 @@ describe("SolanaApiService", () => {
         getParsedTransaction: jest
           .fn()
           .mockRejectedValue(new Error("Network error")),
-      };
+      } as unknown as Connection;
 
-      const apiService = new SolanaApiService("mock_endpoint");
-      (apiService as any).connection = mockConnection;
-      (apiService as any).fallbackConnection = mockConnection; // Also make fallback fail
+      const apiService = new TestSolanaApiService("mock_endpoint");
+      apiService.setTestConnection(mockConnection);
+      apiService.setTestFallbackConnection(mockConnection);
 
       await expect(
         apiService.getTransactionBySignature("signature_95_1")

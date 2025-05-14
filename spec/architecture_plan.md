@@ -169,12 +169,151 @@ To improve performance and user experience, we've designed the following API cac
 - [x] Basic performance optimization via API caching
 - [ ] Additional performance optimizations (code splitting, lazy loading)
 - [ ] Cross-browser compatibility testing
-- [ ] Update README with comprehensive documentation
-  - [ ] Project overview
-  - [ ] Feature list
-  - [ ] Architecture explanation
-  - [ ] Installation instructions
-  - [ ] Configuration options
-- [ ] Set up deployment pipeline
-  - [ ] Create Dockerfile and docker-compose.yml
-  - [ ] Configure Cloudflare deployment 
+- [x] Update README with comprehensive documentation
+  - [x] Project overview
+  - [x] Feature list
+  - [x] Architecture explanation
+  - [x] Installation instructions
+  - [x] Configuration options
+- [x] Set up deployment pipeline
+  - [x] Create Dockerfile and docker-compose.yml
+  - [x] Configure Cloudflare deployment 
+
+## Performance Benchmarking & Measurement
+
+Before implementing performance optimizations, we need to establish baseline measurements to objectively evaluate the effectiveness of our optimizations. Here is our performance testing plan:
+
+### Performance Metrics
+
+#### 1. Core Web Vitals
+- [ ] LCP (Largest Contentful Paint): Measures main content loading time, target < 2.5 seconds
+- [ ] FID (First Input Delay): Measures interaction delay, target < 100ms
+- [ ] CLS (Cumulative Layout Shift): Measures visual stability, target < 0.1
+- [ ] FCP (First Contentful Paint): Measures first content rendering time, target < 1.8 seconds
+- [ ] TTI (Time to Interactive): Measures when page becomes fully interactive, target < 3.8 seconds
+
+#### 2. Application-Specific Metrics
+- [ ] API Response Times: Average and P95 response times for various API calls
+- [ ] Page Load Times: Time from navigation start to complete load for key pages
+- [ ] Rendering Performance: Rendering time for large datasets (e.g., transaction lists)
+- [ ] Memory Usage: Peak and average memory consumption during page lifetime
+- [ ] JavaScript Execution Time: Execution time for critical operations
+- [ ] Network Request Count: Number of requests per page load
+
+### Measurement Tools
+
+#### 1. Automated Tools
+- [ ] Lighthouse: Set up automated Lighthouse testing workflow (dev and prod environments)
+- [ ] Web Vitals Library: Integrate into the application to collect real user metrics
+- [ ] WebPageTest: Perform regular performance tests on critical pages
+- [ ] Next.js Analytics: Enable built-in analytics if available
+
+#### 2. In-App Measurements
+- [ ] Implement custom performance timing API (`performance.mark` and `performance.measure`)
+- [ ] API request time logging and monitoring
+- [ ] Cache hit rate monitoring
+
+#### 3. User Experience Measurements
+- [ ] Page interaction smoothness rating (1-5 scale)
+- [ ] Subjective loading speed rating (1-5 scale)
+- [ ] User waiting threshold measurement (point at which users become impatient)
+
+### Test Environments & Methods
+
+#### 1. Test Environments
+- [ ] Establish standardized test environments (desktop and mobile device specifications)
+- [ ] Define network conditions (3G, 4G, Wi-Fi)
+- [ ] Create test scenarios mimicking real user load
+
+#### 2. Testing Methods
+- [ ] Create baseline test procedures for each major page
+- [ ] Test with varying data loads (small, medium, large transaction volumes)
+- [ ] Test cold start vs. warm start performance
+- [ ] Test first-time visits vs. cached visits
+
+### Performance Monitoring & Reporting
+
+#### 1. Continuous Monitoring
+- [ ] Set up automated performance testing CI pipeline
+- [ ] Establish performance regression alert system
+- [ ] Implement dashboard for key metrics
+
+#### 2. Reporting & Analysis
+- [ ] Establish standardized performance report format
+- [ ] Generate before/after comparison reports
+- [ ] Maintain performance trend charts
+- [ ] Document and analyze ROI of performance improvements
+
+### Baseline Measurement Plan
+
+Before implementing any optimizations, we will perform the following baseline measurements:
+
+1. Run Lighthouse tests on all key pages
+2. Measure response times for all major API endpoints
+3. Record rendering performance for large datasets
+4. Evaluate initial load performance and interaction performance
+5. Measure memory usage patterns
+6. Collect and document all performance timing metrics
+
+These baseline measurements will serve as our reference point for evaluating optimization effectiveness, ensuring we can objectively assess the actual impact of performance improvements.
+
+## Performance Optimization Plan
+
+To deliver the best user experience, we've identified the following performance optimization areas:
+
+### 1. Code Splitting & Lazy Loading
+- [ ] Implement dynamic imports for route-based code splitting
+- [ ] Lazy load non-critical components (e.g., charts, tables)
+- [ ] Use Next.js built-in features for optimized page loading
+
+### 2. Asset Optimization
+- [ ] Optimize and compress image assets
+- [ ] Use modern image formats (WebP) with fallbacks
+- [ ] Implement responsive images based on device size
+
+### 3. API & Data Caching Optimization
+- [x] Implement SWR for component-level data fetching
+- [ ] Add server-side caching for common API responses
+- [ ] Implement debouncing for search API requests
+- [ ] Add background prefetching for likely next user actions
+
+### 4. UI Rendering Optimization
+- [ ] Implement virtualized lists for large data sets
+- [ ] Use React.memo for expensive components
+- [ ] Optimize rerendering with useMemo and useCallback
+- [ ] Add loading skeletons for better perceived performance
+
+### 5. Next.js Specific Optimizations
+- [ ] Leverage Automatic Static Optimization where applicable
+- [ ] Implement Incremental Static Regeneration for semi-static pages
+- [ ] Optimize font loading and display
+
+### 6. Styling Optimization
+- [ ] Purge unused CSS with Tailwind's built-in tools
+- [ ] Implement critical CSS loading
+- [ ] Convert complex animations to use GPU acceleration
+
+### 7. State Management Optimization
+- [ ] Implement context splitting to prevent unnecessary re-renders
+- [ ] Review and optimize global state usage
+- [ ] Add state persistence for relevant user preferences
+
+### 8. Build & Deployment Optimization
+- [ ] Configure proper caching headers for static assets
+- [ ] Implement CDN delivery for static content
+- [ ] Set up bundle analysis tooling to identify large dependencies
+
+### 9. Performance Monitoring
+- [ ] Implement Core Web Vitals monitoring
+- [ ] Add RUM (Real User Monitoring) capabilities
+- [ ] Set up performance budgets and automated alerts
+
+### 10. Security & Robustness Improvements
+- [ ] Implement Content Security Policy
+- [ ] Add rate limiting for public-facing APIs
+- [ ] Optimize handling of network failures and slow connections
+
+### Priority Implementation Order
+1. Code Splitting & Lazy Loading - Immediate impact on initial load time
+2. API & Data Caching Optimization - Critical for reducing API load and improving responsiveness
+3. UI Rendering Optimization - Important for smooth user experience with large datasets 

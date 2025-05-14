@@ -42,3 +42,11 @@ next-env.d.ts
 
 # docs
 /spec
+
+# Docker
+.docker-data
+
+# Cloudflare
+.cloudflare
+.wrangler
+wrangler.toml

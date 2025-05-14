@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Solana Blockchain Explorer
+
+A modern, fast, and user-friendly explorer for the Solana blockchain. This application provides an intuitive interface to browse blocks, transactions, and accounts on the Solana network.
+
+## Features
+
+- **Block Explorer**
+  - View recent blocks with detailed information
+  - Display block height, hash, timestamp, and transaction count
+  - Navigate between blocks with previous/next functionality
+
+- **Transaction Viewer**
+  - List all transactions within a block
+  - View detailed transaction information including instructions, accounts, and logs
+  - Display transaction status, block references, and timestamps
+
+- **Search Functionality**
+  - Search by block slot number or transaction hash
+  - Smart identification of search input type
+  - Quick navigation to relevant information
+
+- **Performance Optimizations**
+  - Efficient API caching with SWR (Stale-While-Revalidate)
+  - Responsive design for all device sizes
+  - Optimized loading states and error handling
+
+## Architecture
+
+- **Frontend Framework**: Next.js with TypeScript
+- **Styling**: TailwindCSS for responsive design
+- **Testing**: Jest with React Testing Library
+- **API Integration**: Custom wrapper around Solana Web3.js
+- **Caching Strategy**: SWR with custom cache configuration
+- **Deployment**: Cloudflare Pages
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.x or later
+- npm 9.x or later
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/solana-blockchain-explorer.git
+   cd solana-blockchain-explorer
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+
+## Build & Deployment Options
+
+### Standard Build
+
+To create a production build:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To start the production server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Deployment to Cloudflare Pages
 
-## Learn More
+This project can be deployed to Cloudflare Pages:
 
-To learn more about Next.js, take a look at the following resources:
+1. Install Wrangler CLI:
+   ```bash
+   npm install -g wrangler
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Login to your Cloudflare account:
+   ```bash
+   wrangler login
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Run the build:
+   ```bash
+   npm run build
+   ```
 
-## Deploy on Vercel
+4. Deploy to Cloudflare Pages:
+   ```bash
+   npx wrangler pages deploy .next
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+#### Deployment Notes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Client-Side Rendering**: 
+   - The application uses client-side rendering with SWR for data fetching
+   - This approach provides good performance while maintaining flexibility
+   - All API data is fetched on the client side
+
+2. **Deployment Challenges**:
+   - Next.js applications with dynamic routes can be challenging to deploy as fully static sites
+   - The current configuration uses client-side navigation and data fetching
+
+3. **Alternative Deployment Options**:
+   - For static sites only, you can modify `next.config.ts` to use `output: "export"`
+   - For full server-side rendering support, consider Vercel or another Next.js-optimized hosting platform
+
+## Configuration
+
+The application can be configured through environment variables:
+
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Primary Solana RPC endpoint (defaults to public endpoint)
+- `NEXT_PUBLIC_FALLBACK_URLS`: Comma-separated list of fallback RPC endpoints
+- `NEXT_PUBLIC_RATE_LIMIT`: Rate limit for API requests (requests per minute)
+
+## License
+
+[MIT](LICENSE)

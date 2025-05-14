@@ -85,24 +85,28 @@ export class SolanaApiService {
     errorMessage: string,
     retries = MAX_RETRIES
   ): Promise<T> {
-    let lastError;
+    let lastError: Error | null = null;
 
     // Try with primary connection
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         return await operation(this.connection);
-      } catch (error: any) {
-        lastError = error;
+      } catch (error: unknown) {
+        // 將 any 類型改為更具體的 unknown 類型
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // 將 error.message 的訪問改為更安全的方式
+        const errorMessage = lastError.message || "";
 
         // Check if rate limit or transaction version error
         const isRateLimitError =
-          error.message?.includes("429") ||
-          error.message?.includes("403") ||
-          error.message?.includes("Too many requests");
+          errorMessage.includes("429") ||
+          errorMessage.includes("403") ||
+          errorMessage.includes("Too many requests");
 
         const isVersionError =
-          error.message?.includes("Transaction version") ||
-          error.code === -32015;
+          errorMessage.includes("Transaction version") ||
+          (lastError as Error & { code?: number })?.code === -32015;
 
         // If backup connection available and rate limit hit, try backup
         if (
@@ -112,20 +116,25 @@ export class SolanaApiService {
           console.warn("Switching to backup RPC endpoint...");
           try {
             return await operation(this.fallbackConnection);
-          } catch (fallbackError: any) {
-            console.error("Backup RPC endpoint also failed:", fallbackError);
-            lastError = fallbackError;
+          } catch (fallbackError: unknown) {
+            // 同樣將 any 類型改為 unknown
+            const fbError =
+              fallbackError instanceof Error
+                ? fallbackError
+                : new Error(String(fallbackError));
+            console.error("Backup RPC endpoint also failed:", fbError);
+            lastError = fbError;
           }
         }
 
         // If transaction version error, fail immediately
         if (isVersionError) {
-          throw error;
+          throw lastError;
         }
 
         // If not rate limit and last attempt, fail
         if (!isRateLimitError && attempt === retries - 1) {
-          throw error;
+          throw lastError;
         }
 
         // Wait and retry
@@ -134,7 +143,7 @@ export class SolanaApiService {
           `API request failed, retrying in ${delay}ms (${
             attempt + 1
           }/${retries})`,
-          error
+          lastError
         );
         await sleep(delay);
       }
@@ -208,7 +217,7 @@ export class SolanaApiService {
             let leader: string | null = null;
             try {
               leader = await this.getSlotLeader(targetSlot);
-            } catch (e) {
+            } catch {
               console.warn(`Could not fetch leader for slot ${targetSlot}`);
             }
 
@@ -253,7 +262,7 @@ export class SolanaApiService {
       let leader: string | null = null;
       try {
         leader = await this.getSlotLeader(slot);
-      } catch (e) {
+      } catch {
         console.warn(`Could not fetch leader for slot ${slot}`);
       }
 
@@ -261,7 +270,7 @@ export class SolanaApiService {
       let childSlots: number[] = [];
       try {
         childSlots = await this.getChildSlots(slot);
-      } catch (e) {
+      } catch {
         console.warn(`Could not fetch child slots for slot ${slot}`);
       }
 
@@ -333,13 +342,25 @@ export class SolanaApiService {
 
       const { blockTime, slot, meta } = transaction;
 
+      // 定義指令的強類型
+      type Instruction = {
+        programId: { toString(): string };
+        accounts?: { toString(): string }[];
+        data?: string;
+      };
+
+      // 定義賬戶的強類型
+      type AccountKey = {
+        pubkey: { toString(): string };
+      };
+
       // Process and convert instruction information
       const instructions = transaction.transaction.message.instructions.map(
-        (ix: any) => {
+        (ix: Instruction) => {
           return {
             programId: ix.programId.toString(),
             accounts: ix.accounts
-              ? ix.accounts.map((account: any) => account.toString())
+              ? ix.accounts.map((account) => account.toString())
               : [],
             data: ix.data || "",
           };
@@ -352,8 +373,8 @@ export class SolanaApiService {
         slot: slot || 0,
         status: meta?.err ? "failed" : slot ? "confirmed" : "processed",
         fee: meta?.fee || 0,
-        accounts: transaction.transaction.message.accountKeys.map((key: any) =>
-          key.pubkey.toString()
+        accounts: transaction.transaction.message.accountKeys.map(
+          (key: AccountKey) => key.pubkey.toString()
         ),
         instructions,
         logs: meta?.logMessages || [],

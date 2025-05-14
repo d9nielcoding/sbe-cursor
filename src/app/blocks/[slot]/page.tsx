@@ -11,6 +11,13 @@ import {
 } from "../../../lib/hooks/useData";
 import Header from "../../components/Header";
 
+// 為靜態導出生成所有應該預先渲染的路徑參數
+export async function generateStaticParams() {
+  // 返回一個空數組，這樣在首次訪問時會動態生成頁面
+  // 或者你可以返回一組預先知道的 slot 值
+  return [];
+}
+
 export default function BlockDetailPage() {
   const params = useParams();
   const router = useRouter();
